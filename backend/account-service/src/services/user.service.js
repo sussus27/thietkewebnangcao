@@ -4,10 +4,7 @@ async function getCurrentUser(userId) {
     const user = await userRepository.findUserById(userId);
 
     if (!user) {
-        const error = new Error('User not found');
-        error.code = 'USER_NOT_FOUND';
-        error.status = 404;
-
+        const error = new AppError(404, 'USER_NOT_FOUND', 'User not found');
         throw error;
     }
 
@@ -25,20 +22,18 @@ async function updateProfile(userId, { email, username }) {
         );
 
         if (!user) {
-            const error = new Error('User not found');
-            error.code = 'USER_NOT_FOUND';
-            error.status = 404;
-
+            const error = new AppError(
+                404,
+                'USER_NOT_FOUND',
+                'User not found'
+            );
             throw error;
         }
 
         return user;
     } catch (error) {
         if (error.code === '23505') {
-            const duplicateError = new Error('Email or username is already registered');
-            duplicateError.code = 'USER_ALREADY_EXISTS';
-            duplicateError.status = 409;
-
+            const duplicateError = new AppError(409, 'USER_ALREADY_EXISTS', 'Email or username is already registered');
             throw duplicateError;
         }
 
