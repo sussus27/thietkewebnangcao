@@ -10,6 +10,8 @@ services:
       - "5433:5432"
     volumes:
       - postgres_account_data:/var/lib/postgresql/data
+      - ./backend/account-service/db:/docker-entrypoint-initdb.d:ro
+      # - ./backend/view-service/db:/docker-entrypoint-initdb.d:ro
   
   api-gateway:
     build:
