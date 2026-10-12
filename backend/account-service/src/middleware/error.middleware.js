@@ -1,5 +1,9 @@
+const AppError = require('../utils/error.util');
+
 function errorMiddleware(error, req, res, next) {
-    if (error.status) {
+    if (res.headersSent) return next(error);
+
+    if (error instanceof AppError) {
         return res.status(error.status).json({
             error: error.code,
             message: error.message,
@@ -7,12 +11,12 @@ function errorMiddleware(error, req, res, next) {
         });
     }
 
-    console.error(error);
+    if (error.type === 'entity.parse.failed') {
+        return res.status(400).json({ error: 'INVALID_JSON', message: 'Malformed JSON body' });
+    }
 
-    return res.status(500).json({
-        error: 'INTERNAL_ERROR',
-        message: 'Internal server error'
-    });
+    console.error(error);
+    return res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Internal server error' });
 }
 
 module.exports = errorMiddleware;

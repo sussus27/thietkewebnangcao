@@ -9,7 +9,7 @@ const loginValidator = [
         .withMessage('Please enter a valid email'),
 
     body('password')
-        .trim()
+        .isString()
         .notEmpty()
         .withMessage('Password is required')
 ];

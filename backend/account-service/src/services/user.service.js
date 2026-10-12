@@ -1,5 +1,7 @@
 const userRepository = require('../repositories/user.repository');
 
+const AppError = require('../utils/error.util');
+
 async function getCurrentUser(userId) {
     const user = await userRepository.findUserById(userId);
 
@@ -16,17 +18,13 @@ async function updateProfile(userId, { email, username }) {
         const user = await userRepository.updateUserProfile(
             userId,
             {
-                email: email.trim().toLowerCase(),
-                username: username.trim()
+                email: email?.trim().toLowerCase(),
+                username: username?.trim()
             }
         );
 
         if (!user) {
-            const error = new AppError(
-                404,
-                'USER_NOT_FOUND',
-                'User not found'
-            );
+            const error = new AppError(404, 'USER_NOT_FOUND', 'User not found');
             throw error;
         }
 

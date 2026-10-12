@@ -18,7 +18,7 @@ app.use('/api/users', userRoutes);
 app.use((req, res, next) => { next( new AppError(404, 'ROUTE_NOT_FOUND', 'Route not found') ); });
 app.use(errorMiddleware);
 
-const PORT = process.env.PORT || 4001;
+const PORT = 4001;
 
 connectDB()
     .then(() => {

@@ -8,9 +8,8 @@ RUN apk add --no-cache python3 make g++
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies and rebuild native modules
-RUN npm ci --omit=dev && \
-    npm rebuild bcrypt --build-from-source
+# Install dependencies
+RUN npm ci --omit=dev
 
 # Keep build dependencies for runtime (bcrypt may need them)
 # If you want to remove them, uncomment the line below
@@ -20,9 +19,9 @@ RUN npm ci --omit=dev && \
 COPY . .
 
 ENV NODE_ENV=production
-ENV PORT=3001
+ENV PORT=4001
 
-EXPOSE 3001
+EXPOSE 4001
 
 CMD ["npm", "start"]
 

@@ -3,7 +3,7 @@ const jwt = require('jsonwebtoken');
 const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '1d';
 const JWT_ISSUER = process.env.JWT_ISSUER || 'account-service';
-const JWT_AUDIENCE = process.env.JWT_AUDIENCE || 'music-streaming-api';
+const JWT_AUDIENCE = process.env.JWT_AUDIENCE || 'listener';
 
 if (!JWT_SECRET || Buffer.byteLength(JWT_SECRET, 'utf8') < 32) {
     throw new Error('JWT_SECRET must be at least 32 characters');

@@ -4,12 +4,10 @@ const router = express.Router();
 const proxy = require('../proxy');
 
 const {
-    STREAMING_SERVICE_URL
+    ACCOUNT_SERVICE_URL
 } = require('../config/services.config');
 
-router.use(
-    '/stream',
-    proxy(STREAMING_SERVICE_URL)
-);
+router.use('/auth', proxy(ACCOUNT_SERVICE_URL));
+router.use('/users', proxy(ACCOUNT_SERVICE_URL));
 
 module.exports = router;
