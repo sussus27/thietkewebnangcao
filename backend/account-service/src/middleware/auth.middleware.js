@@ -1,7 +1,7 @@
 const { verifyToken } = require('../utils/jwt.util');
 const AppError = require('../utils/error.util');
 
-function authMiddleware(req, res, next) {
+function authenticateJWT(req, res, next) {
     const authorization = req.headers.authorization;
     if (!authorization) return next(new AppError(401, 'MISSING_AUTH_HEADER', 'Missing Authorization header'));
 
@@ -21,8 +21,28 @@ function authMiddleware(req, res, next) {
         next();
     } catch (error) {
         if (error.name === 'TokenExpiredError') return next(new AppError(401, 'TOKEN_EXPIRED', 'Token has expired'));
+
         return next(new AppError(401, 'INVALID_TOKEN', 'Invalid token'));
     }
 }
 
-module.exports = authMiddleware;
+//   authorize()        
+//   authorize('admin') 
+function authorize(...allowedRoles) {
+    return (req, res, next) => {
+        if (!req.user) {
+            return next(new AppError(401, 'UNAUTHENTICATED', 'Unauthenticated'));
+        }
+
+        if (allowedRoles.length > 0 && !allowedRoles.includes(req.user.role)) {
+            return next(new AppError(403, 'FORBIDDEN', 'Forbidden'));
+        }
+
+        next();
+    };
+}
+
+module.exports = {
+    authenticateJWT,
+    authorize
+};

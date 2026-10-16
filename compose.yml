@@ -11,16 +11,33 @@ services:
     volumes:
       - postgres_account_data:/var/lib/postgresql/data
       - ./backend/account-service/db:/docker-entrypoint-initdb.d:ro
-      # - ./backend/view-service/db:/docker-entrypoint-initdb.d:ro
-  
+
+  postgres-music:
+    image: postgres:16-alpine
+    container_name: postgres-music
+    environment:
+      POSTGRES_DB: ${POSTGRES_MUSIC_DB:-music_db}
+      POSTGRES_USER: ${POSTGRES_MUSIC_USER:-music_user}
+      POSTGRES_PASSWORD: ${POSTGRES_MUSIC_PASSWORD:-music_pass}
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres_music_data:/var/lib/postgresql/data
+      - ./backend/music-service/db:/docker-entrypoint-initdb.d:ro
+
   api-gateway:
     build:
       context: ./backend/api-gateway
     container_name: api-gateway
+    environment:
+      # Trong Docker, các service gọi nhau bằng tên service, không phải localhost.
+      ACCOUNT_SERVICE_URL: http://account-service:4001
+      MUSIC_SERVICE_URL: http://music-service:4004
+      STREAMING_SERVICE_URL: http://streaming-service:4002
+      UPLOAD_SERVICE_URL: http://upload-service:4003
     depends_on:
       - account-service
-      # - view-service
-      # - streaming-service
+      - music-service
     ports:
       - "4000:4000"
 
@@ -35,5 +52,17 @@ services:
     ports:
       - "4001:4001"
 
+  music-service:
+    build:
+      context: ./backend/music-service
+    container_name: music-service
+    env_file:
+      - ./backend/music-service/.env
+    depends_on:
+      - postgres-music
+    ports:
+      - "4004:4004"
+
 volumes:
   postgres_account_data:
+  postgres_music_data:
