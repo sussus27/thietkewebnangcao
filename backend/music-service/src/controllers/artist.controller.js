@@ -1,8 +1,6 @@
 const { matchedData } = require('express-validator');
 const artistService = require('../services/artist.service');
 
-// matchedData(req) tra ve du lieu da duoc validations/ kiem tra va ep kieu.
-
 async function listArtists(req, res, next) {
     try {
         const result = await artistService.listArtists(matchedData(req));

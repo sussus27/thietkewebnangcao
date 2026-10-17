@@ -62,13 +62,21 @@ async function updateArtist(id, body = {}) {
 }
 
 async function deleteArtist(id) {
-    const deleted = await artistRepository.deleteArtist(id);
+    const artist = await artistRepository.findArtistById(id);
 
-    if (!deleted) {
+    if (!artist) {
         throw new AppError(404, 'ARTIST_NOT_FOUND', 'Artist not found');
     }
 
-    return { data: { id: deleted.id, deleted: true } };
+    const songs = await songRepository.findSongsByArtistId(id);
+
+    if (songs.length > 0) {
+        throw new AppError(409, 'ARTIST_HAS_SONGS', 'Remove this artist from its songs before deleting it');
+    }
+
+    await artistRepository.deleteArtist(id);
+
+    return { data: { id: artist.id, deleted: true } };
 }
 
 module.exports = {

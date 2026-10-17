@@ -63,6 +63,16 @@ async function listUsers(query = {}) {
     };
 }
 
+async function getUserById(id) {
+    const user = await userRepository.findUserById(id);
+
+    if (!user) {
+        throw new AppError(404, 'USER_NOT_FOUND', 'User not found');
+    }
+
+    return { data: user };
+}
+
 function assertNotSelf(actingUserId, targetId, action) {
     if (actingUserId === targetId) {
         throw new AppError(403, 'CANNOT_MODIFY_SELF', `You cannot ${action} your own account`);
@@ -97,6 +107,7 @@ module.exports = {
     getCurrentUser,
     updateProfile,
     listUsers,
+    getUserById,
     updateUserRole,
     deleteUser
 };

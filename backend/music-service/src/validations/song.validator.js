@@ -55,7 +55,7 @@ const createSong = [
         .withMessage('audioUrl must be at most 2048 characters'),
 
     body('coverUrl')
-        .optional({ values: 'falsy' })
+        .optional({ nullable: true })
         .trim()
         .isLength({ max: 2048 })
         .withMessage('coverUrl must be at most 2048 characters'),
@@ -95,7 +95,7 @@ const updateSong = [
         .withMessage('audioUrl must be at most 2048 characters'),
 
     body('coverUrl')
-        .optional({ values: 'falsy' })
+        .optional({ nullable: true })
         .trim()
         .isLength({ max: 2048 })
         .withMessage('coverUrl must be at most 2048 characters'),

@@ -1,5 +1,6 @@
 const playlistRepository = require('../repositories/playlist.repository');
 const songRepository = require('../repositories/song.repository');
+const { withTransaction } = require('../config/db.config');
 const AppError = require('../utils/error.util');
 
 const DEFAULT_PAGE = 1;
@@ -31,10 +32,10 @@ function assertOwner(playlist, userId) {
     }
 }
 
-function buildPlaylistDetail(playlist) {
-    return songRepository
-        .findSongsByPlaylistId(playlist.id)
-        .then((songs) => ({ data: { ...playlist, songs } }));
+async function buildPlaylistDetail(playlist) {
+    const songs = await songRepository.findSongsByPlaylistId(playlist.id);
+
+    return { data: { ...playlist, songs } };
 }
 
 async function listPlaylists(userId, query = {}) {
@@ -70,8 +71,8 @@ async function createPlaylist(userId, body = {}) {
     const created = await playlistRepository.createPlaylist({
         ownerId: userId,
         name: body.name,
-        description: body.description || null,
-        coverUrl: body.coverUrl || null
+        description: body.description ?? null,
+        coverUrl: body.coverUrl ?? null
     });
 
     const playlist = await playlistRepository.findPlaylistById(created.id);
@@ -84,9 +85,9 @@ async function updatePlaylist(userId, id, body = {}) {
     assertOwner(playlist, userId);
 
     await playlistRepository.updatePlaylist(playlist.id, {
-        name: body.name ?? null,
-        description: body.description || null,
-        coverUrl: body.coverUrl || null
+        name: body.name,
+        description: body.description === undefined ? undefined : body.description || null,
+        coverUrl: body.coverUrl === undefined ? undefined : body.coverUrl || null
     });
 
     const updated = await playlistRepository.findPlaylistById(playlist.id);
@@ -107,19 +108,24 @@ async function addSongToPlaylist(userId, id, songId) {
     const playlist = await loadPlaylist(id);
     assertOwner(playlist, userId);
 
-    try {
-        const added = await playlistRepository.addSong(playlist.id, songId);
+    let added;
 
-        if (!added) {
-            throw new AppError(409, 'SONG_ALREADY_IN_PLAYLIST', 'Song is already in this playlist');
-        }
+    try {
+        added = await withTransaction((client) => playlistRepository.addSong(client, playlist.id, songId));
     } catch (error) {
-        // 23503: khoa ngoai khong ton tai -> bai hat khong co trong songs.
         if (error.code === '23503') {
             throw new AppError(404, 'SONG_NOT_FOUND', 'Song not found');
         }
 
         throw error;
+    }
+
+    if (!added) {
+        throw new AppError(404, 'PLAYLIST_NOT_FOUND', 'Playlist not found');
+    }
+
+    if (added.position === null) {
+        throw new AppError(409, 'SONG_ALREADY_IN_PLAYLIST', 'Song is already in this playlist');
     }
 
     const updated = await playlistRepository.findPlaylistById(playlist.id);

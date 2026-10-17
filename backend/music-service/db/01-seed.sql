@@ -1,55 +1,62 @@
 BEGIN;
 
 INSERT INTO artists (name)
-SELECT demo.name
-FROM (VALUES ('Demo Acoustic'), ('Demo Piano'), ('Demo Band')) AS demo(name)
-WHERE NOT EXISTS (SELECT 1 FROM artists WHERE name = demo.name);
-
-INSERT INTO songs (title, audio_url, cover_url, duration_seconds)
-SELECT demo.title, demo.audio_url, demo.cover_url, demo.duration_seconds
+SELECT src.name
 FROM (VALUES
-    ('Ngay moi', '/demo/audio/ngay-moi.mp3', '/demo/covers/ngay-moi.jpg', 210),
-    ('Chieu mua', '/demo/audio/chieu-mua.mp3', '/demo/covers/chieu-mua.jpg', 195),
-    ('Dem yen tinh', '/demo/audio/dem-yen-tinh.mp3', '/demo/covers/dem-yen-tinh.jpg', 240),
-    ('Chuyen di xa', '/demo/audio/chuyen-di-xa.mp3', '/demo/covers/chuyen-di-xa.jpg', 225),
-    ('Hen ngay mai', '/demo/audio/hen-ngay-mai.mp3', '/demo/covers/hen-ngay-mai.jpg', 180)
-) AS demo(title, audio_url, cover_url, duration_seconds)
-WHERE NOT EXISTS (SELECT 1 FROM songs WHERE audio_url = demo.audio_url);
+    ('Johann Sebastian Bach'),
+    ('Edvard Grieg'),
+    ('Alexander Borodin'),
+    ('Joseph Haydn')
+) AS src(name)
+WHERE NOT EXISTS (SELECT 1 FROM artists WHERE artists.name = src.name);
+
+INSERT INTO songs (title, audio_url, duration_seconds)
+SELECT src.title, src.audio_url, src.duration_seconds
+FROM (VALUES
+    ('Aria from Goldberg Variations, BWV 988', '/demo/audio/bach-goldberg-aria.mp3', 292),
+    ('Morning Mood (Peer Gynt Suite No. 1, Op. 46)', '/demo/audio/grieg-morning-mood.mp3', 229),
+    ('In the Hall of the Mountain King (Peer Gynt Suite No. 1, Op. 46)', '/demo/audio/grieg-hall-of-the-mountain-king.mp3', 154),
+    ('String Quartet No. 1 in A major, III. Scherzo: Prestissimo', '/demo/audio/borodin-quartet-scherzo.mp3', 115),
+    ('String Quartet in D major, Op. 64 No. 5 "The Lark", III. Menuetto: Allegretto', '/demo/audio/haydn-lark-menuetto.mp3', 227)
+) AS src(title, audio_url, duration_seconds)
+ON CONFLICT (audio_url) DO UPDATE
+SET title = EXCLUDED.title,
+    cover_url = EXCLUDED.cover_url,
+    duration_seconds = EXCLUDED.duration_seconds;
 
 INSERT INTO song_artists (song_id, artist_id)
 SELECT songs.id, artists.id
 FROM (VALUES
-    ('/demo/audio/ngay-moi.mp3', 'Demo Acoustic'),
-    ('/demo/audio/chieu-mua.mp3', 'Demo Acoustic'),
-    ('/demo/audio/dem-yen-tinh.mp3', 'Demo Piano'),
-    ('/demo/audio/chuyen-di-xa.mp3', 'Demo Band'),
-    ('/demo/audio/hen-ngay-mai.mp3', 'Demo Band'),
-    ('/demo/audio/hen-ngay-mai.mp3', 'Demo Piano')
-) AS demo(audio_url, artist_name)
-JOIN songs ON songs.audio_url = demo.audio_url
-JOIN artists ON artists.name = demo.artist_name
+    ('/demo/audio/bach-goldberg-aria.mp3', 'Johann Sebastian Bach'),
+    ('/demo/audio/grieg-morning-mood.mp3', 'Edvard Grieg'),
+    ('/demo/audio/grieg-hall-of-the-mountain-king.mp3', 'Edvard Grieg'),
+    ('/demo/audio/borodin-quartet-scherzo.mp3', 'Alexander Borodin'),
+    ('/demo/audio/haydn-lark-menuetto.mp3', 'Joseph Haydn')
+) AS src(audio_url, artist_name)
+JOIN songs ON songs.audio_url = src.audio_url
+JOIN artists ON artists.name = src.artist_name
 ON CONFLICT DO NOTHING;
 
-INSERT INTO playlists (name, description, cover_url)
-SELECT demo.name, demo.description, demo.cover_url
+INSERT INTO playlists (name, description)
+SELECT src.name, src.description
 FROM (VALUES
-    ('Nhac thu gian', 'Cac ban nhac nhe nhang de nghe khi lam viec', '/demo/covers/playlist-thu-gian.jpg'),
-    ('Khoi dong ngay moi', 'Nhung bai hat nhip nhanh cho buoi sang', '/demo/covers/playlist-khoi-dong.jpg')
-) AS demo(name, description, cover_url)
-WHERE NOT EXISTS (SELECT 1 FROM playlists WHERE name = demo.name);
+    ('Nhac thu gian', 'Cac ban nhac nhe nhang de nghe khi lam viec'),
+    ('Khoi dong ngay moi', 'Nhung ban nhac nhip nhanh cho buoi sang')
+) AS src(name, description)
+WHERE NOT EXISTS (SELECT 1 FROM playlists WHERE playlists.name = src.name);
 
 INSERT INTO playlist_songs (playlist_id, song_id, position)
-SELECT playlists.id, songs.id, demo.position
+SELECT playlists.id, songs.id, src.position
 FROM (VALUES
-    ('Nhac thu gian', '/demo/audio/dem-yen-tinh.mp3', 1),
-    ('Nhac thu gian', '/demo/audio/chieu-mua.mp3', 2),
-    ('Nhac thu gian', '/demo/audio/ngay-moi.mp3', 3),
-    ('Khoi dong ngay moi', '/demo/audio/ngay-moi.mp3', 1),
-    ('Khoi dong ngay moi', '/demo/audio/chuyen-di-xa.mp3', 2),
-    ('Khoi dong ngay moi', '/demo/audio/hen-ngay-mai.mp3', 3)
-) AS demo(playlist_name, audio_url, position)
-JOIN playlists ON playlists.name = demo.playlist_name
-JOIN songs ON songs.audio_url = demo.audio_url
+    ('Nhac thu gian', '/demo/audio/bach-goldberg-aria.mp3', 1),
+    ('Nhac thu gian', '/demo/audio/grieg-morning-mood.mp3', 2),
+    ('Nhac thu gian', '/demo/audio/haydn-lark-menuetto.mp3', 3),
+    ('Khoi dong ngay moi', '/demo/audio/grieg-hall-of-the-mountain-king.mp3', 1),
+    ('Khoi dong ngay moi', '/demo/audio/borodin-quartet-scherzo.mp3', 2),
+    ('Khoi dong ngay moi', '/demo/audio/haydn-lark-menuetto.mp3', 3)
+) AS src(playlist_name, audio_url, position)
+JOIN playlists ON playlists.name = src.playlist_name
+JOIN songs ON songs.audio_url = src.audio_url
 ON CONFLICT DO NOTHING;
 
 COMMIT;

@@ -13,10 +13,7 @@ async function getCurrentUser(req, res, next) {
 
 async function updateProfile(req, res, next) {
     try {
-        const user = await userService.updateProfile(
-            req.user.id,
-            req.body
-        );
+        const user = await userService.updateProfile(req.user.id, matchedData(req));
 
         return res.status(200).json(user);
     } catch (error) {
@@ -27,6 +24,16 @@ async function updateProfile(req, res, next) {
 async function listUsers(req, res, next) {
     try {
         const result = await userService.listUsers(matchedData(req));
+
+        return res.status(200).json(result);
+    } catch (error) {
+        next(error);
+    }
+}
+
+async function getUserById(req, res, next) {
+    try {
+        const result = await userService.getUserById(matchedData(req).id);
 
         return res.status(200).json(result);
     } catch (error) {
@@ -59,6 +66,7 @@ module.exports = {
     getCurrentUser,
     updateProfile,
     listUsers,
+    getUserById,
     updateUserRole,
     deleteUser
 };

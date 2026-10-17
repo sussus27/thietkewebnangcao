@@ -57,7 +57,6 @@ async function findPlaylists({ ownerId, q, limit, offset }) {
     };
 }
 
-// Khong loc theo chu so huu o day; service kiem tra quyen sau khi doc.
 async function findPlaylistById(id) {
     const result = await pool.query(
         `SELECT ${PLAYLIST_COLUMNS}
@@ -80,16 +79,43 @@ async function createPlaylist({ ownerId, name, description, coverUrl }) {
     return result.rows[0];
 }
 
-// Chi cap nhat truong nao duoc truyen; khong the xoa trang description/cover_url.
+function buildUpdate({ name, description, coverUrl }) {
+    const assignments = [];
+    const values = [];
+
+    if (name !== undefined) {
+        values.push(name);
+        assignments.push(`name = $${values.length}`);
+    }
+
+    if (description !== undefined) {
+        values.push(description);
+        assignments.push(`description = $${values.length}`);
+    }
+
+    if (coverUrl !== undefined) {
+        values.push(coverUrl);
+        assignments.push(`cover_url = $${values.length}`);
+    }
+
+    return { assignments, values };
+}
+
 async function updatePlaylist(id, { name, description, coverUrl }) {
+    const { assignments, values } = buildUpdate({ name, description, coverUrl });
+
+    if (assignments.length === 0) {
+        const result = await pool.query('SELECT id FROM playlists WHERE id = $1', [id]);
+
+        return result.rows[0] || null;
+    }
+
     const result = await pool.query(
         `UPDATE playlists
-         SET name = COALESCE($2, name),
-             description = COALESCE($3, description),
-             cover_url = COALESCE($4, cover_url)
-         WHERE id = $1
+         SET ${assignments.join(', ')}
+         WHERE id = $${values.length + 1}
          RETURNING id`,
-        [id, name ?? null, description ?? null, coverUrl ?? null]
+        [...values, id]
     );
 
     return result.rows[0] || null;
@@ -106,10 +132,15 @@ async function deletePlaylist(id) {
     return result.rows[0] || null;
 }
 
-// position moi = lon nhat hien tai + 1.
-// Neu bai hat da co trong playlist thi ON CONFLICT khong tra ve dong nao.
-async function addSong(playlistId, songId) {
-    const result = await pool.query(
+async function addSong(client, playlistId, songId) {
+    const locked = await client.query(
+        `SELECT id FROM playlists WHERE id = $1 FOR UPDATE`,
+        [playlistId]
+    );
+
+    if (locked.rows.length === 0) return null;
+
+    const result = await client.query(
         `INSERT INTO playlist_songs (playlist_id, song_id, position)
          SELECT $1, $2, COALESCE(MAX(position), 0) + 1
          FROM playlist_songs
@@ -119,7 +150,7 @@ async function addSong(playlistId, songId) {
         [playlistId, songId]
     );
 
-    return result.rows[0] || null;
+    return { position: result.rows[0]?.position ?? null };
 }
 
 async function removeSong(playlistId, songId) {

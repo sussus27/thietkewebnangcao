@@ -1,4 +1,5 @@
 const songRepository = require('../repositories/song.repository');
+const { withTransaction } = require('../config/db.config');
 const { publishSongDeleted } = require('../messaging/song.publisher');
 const AppError = require('../utils/error.util');
 
@@ -42,13 +43,15 @@ async function createSong(body = {}) {
     let createdId;
 
     try {
-        createdId = await songRepository.createSong({
-            title: body.title,
-            audioUrl: body.audioUrl,
-            coverUrl: body.coverUrl || null,
-            durationSeconds: body.durationSeconds,
-            artistIds: body.artistIds || []
-        });
+        createdId = await withTransaction((client) =>
+            songRepository.createSong(client, {
+                title: body.title,
+                audioUrl: body.audioUrl,
+                coverUrl: body.coverUrl ?? null,
+                durationSeconds: body.durationSeconds,
+                artistIds: body.artistIds ?? []
+            })
+        );
     } catch (error) {
         if (error.code === '23503') {
             throw new AppError(404, 'ARTIST_NOT_FOUND', 'One or more artists do not exist');
@@ -68,13 +71,15 @@ async function updateSong(id, body = {}) {
     let updatedId;
 
     try {
-        updatedId = await songRepository.updateSong(id, {
-            title: body.title ?? null,
-            audioUrl: body.audioUrl ?? null,
-            coverUrl: body.coverUrl || null,
-            durationSeconds: body.durationSeconds ?? null,
-            artistIds: body.artistIds ?? null
-        });
+        updatedId = await withTransaction((client) =>
+            songRepository.updateSong(client, id, {
+                title: body.title,
+                audioUrl: body.audioUrl,
+                coverUrl: body.coverUrl === undefined ? undefined : body.coverUrl || null,
+                durationSeconds: body.durationSeconds,
+                artistIds: body.artistIds
+            })
+        );
     } catch (error) {
         if (error.code === '23503') {
             throw new AppError(404, 'ARTIST_NOT_FOUND', 'One or more artists do not exist');

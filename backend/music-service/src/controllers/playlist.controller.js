@@ -1,8 +1,6 @@
 const { matchedData } = require('express-validator');
 const playlistService = require('../services/playlist.service');
 
-// matchedData(req) tra ve du lieu da duoc validations/ kiem tra va ep kieu.
-
 async function listPlaylists(req, res, next) {
     try {
         const result = await playlistService.listPlaylists(req.user.id, matchedData(req));
@@ -35,7 +33,7 @@ async function createPlaylist(req, res, next) {
 
 async function updatePlaylist(req, res, next) {
     try {
-        const { id, ...body } = matchedData(req);
+        const { id, ...body } = matchedData(req, { includeOptionals: true });
         const result = await playlistService.updatePlaylist(req.user.id, id, body);
 
         return res.status(200).json(result);

@@ -10,6 +10,23 @@ async function connectDB() {
     client.release();
 }
 
+async function withTransaction(work) {
+    const client = await pool.connect();
+
+    try {
+        await client.query('BEGIN');
+        const result = await work(client);
+        await client.query('COMMIT');
+
+        return result;
+    } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+    } finally {
+        client.release();
+    }
+}
+
 pool.on('error', (err) => {
     console.error('Unexpected error on idle client', err);
     process.exit(-1);
@@ -17,5 +34,6 @@ pool.on('error', (err) => {
 
 module.exports = {
     pool,
-    connectDB
+    connectDB,
+    withTransaction
 };

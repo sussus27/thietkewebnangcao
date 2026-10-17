@@ -49,7 +49,7 @@ const createPlaylist = [
         .withMessage('name must be at most 150 characters'),
 
     body('description')
-        .optional()
+        .optional({ nullable: true })
         .isString()
         .withMessage('description must be a string')
         .trim()
@@ -57,7 +57,7 @@ const createPlaylist = [
         .withMessage('description must be at most 1000 characters'),
 
     body('coverUrl')
-        .optional()
+        .optional({ nullable: true })
         .isString()
         .withMessage('coverUrl must be a string')
         .trim()
@@ -75,7 +75,7 @@ const updatePlaylist = [
         .withMessage('name must be at most 150 characters'),
 
     body('description')
-        .optional()
+        .optional({ nullable: true })
         .isString()
         .withMessage('description must be a string')
         .trim()
@@ -83,7 +83,7 @@ const updatePlaylist = [
         .withMessage('description must be at most 1000 characters'),
 
     body('coverUrl')
-        .optional()
+        .optional({ nullable: true })
         .isString()
         .withMessage('coverUrl must be a string')
         .trim()

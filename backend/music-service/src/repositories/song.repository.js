@@ -8,7 +8,6 @@ const SONG_COLUMNS = `
     s.duration_seconds,
     s.created_at`;
 
-// Tra ve mang ten nghe si, hoac [] neu bai hat chua gan nghe si nao.
 const ARTISTS_COLUMN = `
     COALESCE(
         (
@@ -57,12 +56,7 @@ function buildFilters({ q, artistId }) {
 async function findSongs({ q, artistId, ascending, limit, offset }) {
     const { where, values } = buildFilters({ q, artistId });
     const listValues = [...values, limit, offset];
-
-    // ascending la boolean, nen gia tri noi vao SQL chi co the la 'ASC' hoac 'DESC'.
     const direction = ascending ? 'ASC' : 'DESC';
-
-    // s.id lam khoa phu: nhieu bai hat co the trung created_at, thieu no thi
-    // thu tu khong xac dinh va phan trang se trung hoac sot ban ghi.
     const orderBy = `s.created_at ${direction}, s.id ${direction}`;
 
     const [listResult, countResult] = await Promise.all([
@@ -112,7 +106,6 @@ async function findSongsByArtistId(artistId) {
     return result.rows;
 }
 
-// Thu tu bai hat trong playlist do cot position quyet dinh.
 async function findSongsByPlaylistId(playlistId) {
     const result = await pool.query(
         `SELECT ${SONG_COLUMNS}, ${ARTISTS_COLUMN}, ps.position
@@ -126,7 +119,6 @@ async function findSongsByPlaylistId(playlistId) {
     return result.rows;
 }
 
-// Gan nghe si cho bai hat. Nghe si da co thi bo qua.
 async function attachArtists(client, songId, artistIds) {
     if (artistIds.length === 0) return;
 
@@ -139,72 +131,74 @@ async function attachArtists(client, songId, artistIds) {
     );
 }
 
-// Bai hat va danh sach nghe si phai ghi trong cung mot transaction,
-// neu khong se co bai hat nam trong database ma khong co nghe si nao.
-async function createSong({ title, audioUrl, coverUrl, durationSeconds, artistIds }) {
-    const client = await pool.connect();
+function buildUpdate({ title, audioUrl, coverUrl, durationSeconds }) {
+    const assignments = [];
+    const values = [];
 
-    try {
-        await client.query('BEGIN');
-
-        const result = await client.query(
-            `INSERT INTO songs (title, audio_url, cover_url, duration_seconds)
-             VALUES ($1, $2, $3, $4)
-             RETURNING id`,
-            [title, audioUrl, coverUrl, durationSeconds]
-        );
-
-        await attachArtists(client, result.rows[0].id, artistIds);
-        await client.query('COMMIT');
-
-        return result.rows[0].id;
-    } catch (error) {
-        await client.query('ROLLBACK');
-        throw error;
-    } finally {
-        client.release();
+    if (title !== undefined) {
+        values.push(title);
+        assignments.push(`title = $${values.length}`);
     }
+
+    if (audioUrl !== undefined) {
+        values.push(audioUrl);
+        assignments.push(`audio_url = $${values.length}`);
+    }
+
+    if (coverUrl !== undefined) {
+        values.push(coverUrl);
+        assignments.push(`cover_url = $${values.length}`);
+    }
+
+    if (durationSeconds !== undefined) {
+        values.push(durationSeconds);
+        assignments.push(`duration_seconds = $${values.length}`);
+    }
+
+    return { assignments, values };
 }
 
-// artistIds === null nghia la khong dung toi danh sach nghe si.
-// artistIds === [] nghia la bo het nghe si cua bai hat.
-async function updateSong(id, { title, audioUrl, coverUrl, durationSeconds, artistIds }) {
-    const client = await pool.connect();
+async function createSong(client, { title, audioUrl, coverUrl, durationSeconds, artistIds }) {
+    const result = await client.query(
+        `INSERT INTO songs (title, audio_url, cover_url, duration_seconds)
+         VALUES ($1, $2, $3, $4)
+         RETURNING id`,
+        [title, audioUrl, coverUrl, durationSeconds]
+    );
 
-    try {
-        await client.query('BEGIN');
+    await attachArtists(client, result.rows[0].id, artistIds);
 
+    return result.rows[0].id;
+}
+
+async function updateSong(client, id, { title, audioUrl, coverUrl, durationSeconds, artistIds }) {
+    const { assignments, values } = buildUpdate({ title, audioUrl, coverUrl, durationSeconds });
+
+    let updated;
+
+    if (assignments.length > 0) {
         const result = await client.query(
             `UPDATE songs
-             SET title = COALESCE($2, title),
-                 audio_url = COALESCE($3, audio_url),
-                 cover_url = COALESCE($4, cover_url),
-                 duration_seconds = COALESCE($5, duration_seconds)
-             WHERE id = $1
+             SET ${assignments.join(', ')}
+             WHERE id = $${values.length + 1}
              RETURNING id`,
-            [id, title ?? null, audioUrl ?? null, coverUrl ?? null, durationSeconds ?? null]
+            [...values, id]
         );
 
-        if (result.rows.length === 0) {
-            await client.query('ROLLBACK');
-
-            return null;
-        }
-
-        if (artistIds !== null) {
-            await client.query('DELETE FROM song_artists WHERE song_id = $1', [id]);
-            await attachArtists(client, id, artistIds);
-        }
-
-        await client.query('COMMIT');
-
-        return result.rows[0].id;
-    } catch (error) {
-        await client.query('ROLLBACK');
-        throw error;
-    } finally {
-        client.release();
+        updated = result.rows[0] || null;
+    } else {
+        const result = await client.query('SELECT id FROM songs WHERE id = $1', [id]);
+        updated = result.rows[0] || null;
     }
+
+    if (!updated) return null;
+
+    if (artistIds !== undefined) {
+        await client.query('DELETE FROM song_artists WHERE song_id = $1', [id]);
+        await attachArtists(client, id, artistIds);
+    }
+
+    return updated.id;
 }
 
 async function deleteSong(id) {

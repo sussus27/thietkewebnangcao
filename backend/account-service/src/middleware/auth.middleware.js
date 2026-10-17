@@ -26,8 +26,6 @@ function authenticateJWT(req, res, next) {
     }
 }
 
-//   authorize()        
-//   authorize('admin') 
 function authorize(...allowedRoles) {
     return (req, res, next) => {
         if (!req.user) {

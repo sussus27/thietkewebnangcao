@@ -6,6 +6,8 @@ const ROUTING_KEY = 'file.uploaded';
 const QUEUE = 'music.file-uploaded';
 const DLX = 'music.events.dlx';
 const DLQ = 'music.file-uploaded.dlq';
+const MAX_ATTEMPTS = 3;
+const RETRY_DELAY_MS = 1000;
 
 function parsePayload(content) {
     const payload = JSON.parse(content.toString());
@@ -23,6 +25,39 @@ function parsePayload(content) {
     }
 
     return payload;
+}
+
+function messageOptions(properties) {
+    return {
+        persistent: true,
+        contentType: 'application/json',
+        headers: { ...properties.headers }
+    };
+}
+
+async function rejectWithRetry(channel, message, error) {
+    const attempt = Number(message.properties.headers?.['x-attempts'] ?? 0) + 1;
+    const reason = String(error.code || error.message);
+    const options = messageOptions(message.properties);
+
+    options.headers['x-attempts'] = attempt;
+    options.headers['x-error'] = reason;
+
+    if (attempt >= MAX_ATTEMPTS) {
+        console.error(`file.uploaded rejected permanently (${reason}) after ${attempt} attempts`);
+
+        channel.sendToQueue(DLQ, message.content, options);
+        channel.ack(message);
+
+        return;
+    }
+
+    console.error(`file.uploaded rejected (${reason}), retrying attempt ${attempt}/${MAX_ATTEMPTS}`);
+
+    await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
+
+    channel.sendToQueue(QUEUE, message.content, options);
+    channel.ack(message);
 }
 
 async function handleMessage(channel, message) {
@@ -44,8 +79,7 @@ async function handleMessage(channel, message) {
             return;
         }
 
-        console.error(`file.uploaded rejected (${error.code || error.message})`);
-        channel.nack(message, false, false);
+        await rejectWithRetry(channel, message, error);
     }
 }
 

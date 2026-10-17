@@ -12,6 +12,8 @@ const AppError = require('./utils/error.util');
 
 const app = express();
 
+app.get('/health', (req, res) => res.status(200).json({ status: 'ok' }));
+
 app.use('/api/upload', uploadRoutes);
 app.use((req, res, next) => { next( new AppError(404, 'ROUTE_NOT_FOUND', 'Route not found') ); });
 app.use(errorHandler);
