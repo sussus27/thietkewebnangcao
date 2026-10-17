@@ -1,6 +1,6 @@
 const { query, param, body } = require('express-validator');
 
-const listSongsValidator = [
+const listSongs = [
     query('q')
         .optional()
         .isString()
@@ -32,14 +32,14 @@ const listSongsValidator = [
         .toInt()
 ];
 
-const songIdValidator = [
+const songId = [
     param('id')
         .isInt({ min: 1 })
         .withMessage('Song id must be a positive integer')
         .toInt()
 ];
 
-const createSongValidator = [
+const createSong = [
     body('title')
         .trim()
         .notEmpty()
@@ -77,8 +77,7 @@ const createSongValidator = [
         .toInt()
 ];
 
-// PATCH: moi truong deu tuy chon, nhung gui thi phai hop le.
-const updateSongValidator = [
+const updateSong = [
     body('title')
         .optional()
         .trim()
@@ -120,8 +119,8 @@ const updateSongValidator = [
 ];
 
 module.exports = {
-    listSongsValidator,
-    songIdValidator,
-    createSongValidator,
-    updateSongValidator
+    listSongs,
+    songId,
+    createSong,
+    updateSong
 };

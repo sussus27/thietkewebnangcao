@@ -1,6 +1,6 @@
 const { query, param, body } = require('express-validator');
 
-const listPlaylistsValidator = [
+const listPlaylists = [
     query('q')
         .optional()
         .isString()
@@ -21,14 +21,14 @@ const listPlaylistsValidator = [
         .toInt()
 ];
 
-const playlistIdValidator = [
+const playlistId = [
     param('id')
         .isInt({ min: 1 })
         .withMessage('Playlist id must be a positive integer')
         .toInt()
 ];
 
-const playlistSongParamsValidator = [
+const playlistSongParams = [
     param('id')
         .isInt({ min: 1 })
         .withMessage('Playlist id must be a positive integer')
@@ -40,7 +40,7 @@ const playlistSongParamsValidator = [
         .toInt()
 ];
 
-const createPlaylistValidator = [
+const createPlaylist = [
     body('name')
         .trim()
         .notEmpty()
@@ -65,7 +65,7 @@ const createPlaylistValidator = [
         .withMessage('coverUrl must be at most 2048 characters')
 ];
 
-const updatePlaylistValidator = [
+const updatePlaylist = [
     body('name')
         .optional()
         .trim()
@@ -91,7 +91,7 @@ const updatePlaylistValidator = [
         .withMessage('coverUrl must be at most 2048 characters')
 ];
 
-const addSongValidator = [
+const addSong = [
     body('songId')
         .isInt({ min: 1 })
         .withMessage('songId must be a positive integer')
@@ -99,10 +99,10 @@ const addSongValidator = [
 ];
 
 module.exports = {
-    listPlaylistsValidator,
-    playlistIdValidator,
-    playlistSongParamsValidator,
-    createPlaylistValidator,
-    updatePlaylistValidator,
-    addSongValidator
+    listPlaylists,
+    playlistId,
+    playlistSongParams,
+    createPlaylist,
+    updatePlaylist,
+    addSong
 };

@@ -1,6 +1,6 @@
 const { query, param, body } = require('express-validator');
 
-const listUsersValidator = [
+const listUsers = [
     query('q')
         .optional()
         .isString()
@@ -21,21 +21,21 @@ const listUsersValidator = [
         .toInt()
 ];
 
-const userIdValidator = [
+const userId = [
     param('id')
         .isInt({ min: 1 })
         .withMessage('User id must be a positive integer')
         .toInt()
 ];
 
-const updateRoleValidator = [
+const updateRole = [
     body('role')
         .isIn(['listener', 'admin'])
         .withMessage('role must be one of: listener, admin')
 ];
 
 module.exports = {
-    listUsersValidator,
-    userIdValidator,
-    updateRoleValidator
+    listUsers,
+    userId,
+    updateRole
 };

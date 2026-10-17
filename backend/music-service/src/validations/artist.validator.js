@@ -1,6 +1,6 @@
 const { query, param, body } = require('express-validator');
 
-const listArtistsValidator = [
+const listArtists = [
     query('q')
         .optional()
         .isString()
@@ -21,14 +21,14 @@ const listArtistsValidator = [
         .toInt()
 ];
 
-const artistIdValidator = [
+const artistId = [
     param('id')
         .isInt({ min: 1 })
         .withMessage('Artist id must be a positive integer')
         .toInt()
 ];
 
-const createArtistValidator = [
+const createArtist = [
     body('name')
         .trim()
         .notEmpty()
@@ -37,7 +37,7 @@ const createArtistValidator = [
         .withMessage('name must be at most 150 characters')
 ];
 
-const updateArtistValidator = [
+const updateArtist = [
     body('name')
         .optional()
         .trim()
@@ -48,8 +48,8 @@ const updateArtistValidator = [
 ];
 
 module.exports = {
-    listArtistsValidator,
-    artistIdValidator,
-    createArtistValidator,
-    updateArtistValidator
+    listArtists,
+    artistId,
+    createArtist,
+    updateArtist
 };

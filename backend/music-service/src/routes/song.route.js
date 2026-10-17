@@ -2,22 +2,16 @@ const express = require('express');
 
 const songController = require('../controllers/song.controller');
 const { authenticateJWT, authorize } = require('../middleware/auth.middleware');
-const validationMiddleware = require('../middleware/validation.middleware');
-
-const {
-    listSongsValidator,
-    songIdValidator,
-    createSongValidator,
-    updateSongValidator
-} = require('../validations/song.validator');
+const validate = require('../middleware/validation.middleware');
+const songValidation = require('../validations/song.validator');
 
 const router = express.Router();
 
-router.get('/', listSongsValidator, validationMiddleware, songController.listSongs);
-router.get('/:id', songIdValidator, validationMiddleware, songController.getSongById);
+router.get('/', validate(songValidation.listSongs), songController.listSongs);
+router.get('/:id', validate(songValidation.songId), songController.getSongById);
 
-router.post('/', authenticateJWT, authorize('admin'), createSongValidator, validationMiddleware, songController.createSong);
-router.patch('/:id', authenticateJWT, authorize('admin'), songIdValidator, updateSongValidator, validationMiddleware, songController.updateSong);
-router.delete('/:id', authenticateJWT, authorize('admin'), songIdValidator, validationMiddleware, songController.deleteSong);
+router.post('/', authenticateJWT, authorize('admin'), validate(songValidation.createSong), songController.createSong);
+router.patch('/:id', authenticateJWT, authorize('admin'), validate(songValidation.songId, songValidation.updateSong), songController.updateSong);
+router.delete('/:id', authenticateJWT, authorize('admin'), validate(songValidation.songId), songController.deleteSong);
 
 module.exports = router;
