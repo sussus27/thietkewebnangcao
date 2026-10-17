@@ -25,6 +25,19 @@ services:
       - postgres_music_data:/var/lib/postgresql/data
       - ./backend/music-service/db:/docker-entrypoint-initdb.d:ro
 
+  minio:
+    image: minio/minio
+    container_name: minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+
   rabbitmq:
     image: rabbitmq:3-management-alpine
     container_name: rabbitmq
@@ -49,6 +62,8 @@ services:
     depends_on:
       - account-service
       - music-service
+      - upload-service
+      - streaming-service
     ports:
       - "4000:4000"
 
@@ -75,7 +90,32 @@ services:
     ports:
       - "4004:4004"
 
+  upload-service:
+    build:
+      context: ./backend/upload-service
+    container_name: upload-service
+    env_file:
+      - ./backend/upload-service/.env
+    depends_on:
+      - rabbitmq
+      - minio
+    ports:
+      - "4003:4003"
+
+  streaming-service:
+    build:
+      context: ./backend/streaming-service
+    container_name: streaming-service
+    env_file:
+      - ./backend/streaming-service/.env
+    depends_on:
+      - minio
+      - music-service
+    ports:
+      - "4002:4002"
+
 volumes:
   postgres_account_data:
   postgres_music_data:
   rabbitmq_data:
+  minio_data:

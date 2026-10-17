@@ -7,7 +7,7 @@ let channel = null;
 
 async function connectRabbitMQ() {
     connection = await amqp.connect(RABBITMQ_URL);
-    channel = await connection.createChannel();
+    channel = await connection.createConfirmChannel();
 
     connection.on('error', (error) => {
         console.error('RabbitMQ connection error:', error);
@@ -22,11 +22,16 @@ async function connectRabbitMQ() {
     return channel;
 }
 
+function getConnection() {
+    return connection;
+}
+
 function getChannel() {
     return channel;
 }
 
 module.exports = {
     connectRabbitMQ,
+    getConnection,
     getChannel
 };

@@ -211,7 +211,7 @@ async function deleteSong(id) {
     const result = await pool.query(
         `DELETE FROM songs
          WHERE id = $1
-         RETURNING id`,
+         RETURNING id, audio_url`,
         [id]
     );
 

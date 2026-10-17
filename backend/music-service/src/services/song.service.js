@@ -1,4 +1,5 @@
 const songRepository = require('../repositories/song.repository');
+const { publishSongDeleted } = require('../messaging/song.publisher');
 const AppError = require('../utils/error.util');
 
 const DEFAULT_PAGE = 1;
@@ -98,6 +99,12 @@ async function deleteSong(id) {
 
     if (!deleted) {
         throw new AppError(404, 'SONG_NOT_FOUND', 'Song not found');
+    }
+
+    try {
+        await publishSongDeleted(deleted.audio_url);
+    } catch (error) {
+        console.error(`Cannot publish song.deleted for song ${deleted.id}:`, error.message);
     }
 
     return { data: { id: deleted.id, deleted: true } };
