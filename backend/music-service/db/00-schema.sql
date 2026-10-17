@@ -47,4 +47,8 @@ CREATE INDEX IF NOT EXISTS song_artists_artist_id_idx ON song_artists (artist_id
 CREATE INDEX IF NOT EXISTS playlist_songs_song_id_idx ON playlist_songs (song_id);
 CREATE INDEX IF NOT EXISTS playlists_owner_id_idx ON playlists (owner_id);
 
+-- Mot file chi ung voi mot bai hat; dong thoi la chot chong trung khi
+-- consumer nhan lai cung mot event.
+CREATE UNIQUE INDEX IF NOT EXISTS songs_audio_url_key ON songs (audio_url);
+
 COMMIT;

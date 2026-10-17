@@ -25,12 +25,23 @@ services:
       - postgres_music_data:/var/lib/postgresql/data
       - ./backend/music-service/db:/docker-entrypoint-initdb.d:ro
 
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: music
+      RABBITMQ_DEFAULT_PASS: musicpass
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+
   api-gateway:
     build:
       context: ./backend/api-gateway
     container_name: api-gateway
     environment:
-      # Trong Docker, các service gọi nhau bằng tên service, không phải localhost.
       ACCOUNT_SERVICE_URL: http://account-service:4001
       MUSIC_SERVICE_URL: http://music-service:4004
       STREAMING_SERVICE_URL: http://streaming-service:4002
@@ -60,9 +71,11 @@ services:
       - ./backend/music-service/.env
     depends_on:
       - postgres-music
+      - rabbitmq
     ports:
       - "4004:4004"
 
 volumes:
   postgres_account_data:
   postgres_music_data:
+  rabbitmq_data:

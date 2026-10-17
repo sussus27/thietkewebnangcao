@@ -2,6 +2,8 @@ require('dotenv').config();
 
 const express = require('express');
 const { connectDB } = require('./config/db.config');
+const { connectRabbitMQ } = require('./config/rabbitmq.config');
+const { initUploadConsumer } = require('./messaging/upload.consumer');
 
 const songRoutes = require('./routes/song.route');
 const artistRoutes = require('./routes/artist.route');
@@ -23,6 +25,8 @@ app.use(errorHandler);
 const PORT = 4004;
 
 connectDB()
+    .then(connectRabbitMQ)
+    .then(initUploadConsumer)
     .then(() => {
         app.listen(PORT, () => {
             console.log(`Music Service running on port ${PORT}`);
