@@ -6,17 +6,19 @@ const { connectDB } = require('./config/db.config');
 const authRoutes = require('./routes/auth.route');
 const userRoutes = require('./routes/user.route');
 
-const errorMiddleware = require('./middleware/error.middleware');
+const errorHandler = require('./middleware/error.middleware');
 const AppError = require('./utils/error.util');
 
 const app = express();
 
 app.use(express.json());
 
+app.get('/health', (req, res) => res.status(200).json({ status: 'ok' }));
+
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use((req, res, next) => { next( new AppError(404, 'ROUTE_NOT_FOUND', 'Route not found') ); });
-app.use(errorMiddleware);
+app.use(errorHandler);
 
 const PORT = 4001;
 

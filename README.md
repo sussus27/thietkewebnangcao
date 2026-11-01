@@ -1,7 +1,5 @@
-# Website nghe nhạc trực tuyến
+# Sử dụng kiến trúc microservice và ứng dụng phân tán.
+- Chia thành music service, account service, upload service và streaming service.
 
-Đồ án môn Thiết kế web nâng cao, hướng đến các chức năng đăng ký, đăng nhập,
-tìm kiếm, nghe nhạc và lưu bài hát yêu thích.
-
-Backend sử dụng Node.js, Express và PostgreSQL, triển khai bằng Docker Compose.
-Hiện đã có account-service; các chức năng nhạc đang được phát triển.
+- Music và account service xử lý metadata và thông tin account với các database riêng. Upload service và streaming service xử lý tác vụ liên quan đến object storage.
+- Music và upload giao tiếp bất đồng bộ thông qua rabbitmq

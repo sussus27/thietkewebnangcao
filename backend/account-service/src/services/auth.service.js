@@ -21,7 +21,6 @@ async function register({ email, password, username }) {
             username: user.username
         };
     } catch (error) {
-        // PostgreSQL UNIQUE constraint violation
         if (error.code === '23505') {
             const duplicateError = new AppError(409, 'USER_ALREADY_EXISTS', 'Email or username is already registered');
             throw duplicateError;
