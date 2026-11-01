@@ -36,7 +36,8 @@ services:
       retries: 12
 
   minio:
-    image: minio/minio
+    # MinIO đã gỡ image khỏi Docker Hub và Quay, dùng bản fork pgsty/silo (tương thích MinIO)
+    image: docker.io/pgsty/silo:RELEASE.2026-08-06T00-00-00Z
     container_name: minio
     command: server /data --console-address ":9001"
     environment:
@@ -54,7 +55,7 @@ services:
       retries: 12
 
   demo-audio:
-    image: minio/minio
+    image: docker.io/pgsty/silo:RELEASE.2026-08-06T00-00-00Z
     container_name: demo-audio
     depends_on:
       minio:
@@ -88,7 +89,8 @@ services:
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      # Chờ cổng AMQP 5672 mở thật sự (ping thôi thì chưa đủ)
+      test: ["CMD-SHELL", "rabbitmq-diagnostics -q check_port_listener 5672"]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -144,6 +146,7 @@ services:
     build:
       context: ./backend/music-service
     container_name: music-service
+    restart: on-failure
     environment:
       DATABASE_URL: postgresql://music_user:music_pass@postgres-music:5432/music_db
       RABBITMQ_URL: amqp://music:musicpass@rabbitmq:5672
@@ -167,6 +170,7 @@ services:
     build:
       context: ./backend/upload-service
     container_name: upload-service
+    restart: on-failure
     environment:
       RABBITMQ_URL: amqp://music:musicpass@rabbitmq:5672
       MINIO_ENDPOINT: minio
@@ -198,7 +202,8 @@ services:
       context: ./backend/streaming-service
     container_name: streaming-service
     environment:
-      MINIO_ENDPOINT: localhost
+      # Trong container, "localhost" là chính nó nên phải trỏ tới service minio
+      MINIO_ENDPOINT: minio
       MINIO_PORT: 9000
       MINIO_USE_SSL: "false"
       MINIO_ACCESS_KEY: minioadmin
