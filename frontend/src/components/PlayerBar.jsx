@@ -30,7 +30,7 @@ export function PlayerBar({
     <div className="player-bar">
       <audio
         ref={audioRef}
-        src={currentTrack ? `/api/stream/${currentTrack.id}` : ''}
+        src=""
         onLoadedMetadata={onLoadedMetadata}
         onTimeUpdate={onTimeUpdate}
         onEnded={onEnded}

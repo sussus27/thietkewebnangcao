@@ -202,8 +202,8 @@ services:
       context: ./backend/streaming-service
     container_name: streaming-service
     environment:
-      # Trong container, "localhost" là chính nó nên phải trỏ tới service minio
-      MINIO_ENDPOINT: minio
+      # Tạo signed URL đúng với host mà browser đang phát: localhost:9000
+      MINIO_ENDPOINT: localhost
       MINIO_PORT: 9000
       MINIO_USE_SSL: "false"
       MINIO_ACCESS_KEY: minioadmin

@@ -1,5 +1,6 @@
 ﻿import { useEffect, useRef, useState } from 'react'
 import './App.css'
+import { PlayerBar } from './components/PlayerBar'
 import { AdminPage } from './pages/AdminPage'
 import { AuthPage } from './pages/AuthPage'
 import { ArtistDetailPage } from './pages/ArtistDetailPage'
@@ -453,6 +454,23 @@ function App() {
     }
   }
 
+  const resolvePlayableStreamUrl = (song) => {
+    if (!song) {
+      return ''
+    }
+
+    const normalizedAudioUrl = (song.audio_url || '').replace(/^\/+/, '')
+    if (normalizedAudioUrl.startsWith('demo/audio/')) {
+      return `/${normalizedAudioUrl}`
+    }
+
+    if (song.id) {
+      return `/api/stream/${song.id}`
+    }
+
+    return ''
+  }
+
   const handlePlayTrack = (song, queue = []) => {
     const nextQueue = Array.isArray(queue) ? queue : []
     setPlayQueue(nextQueue)
@@ -531,29 +549,45 @@ function App() {
   }
 
   const handleSeek = (nextProgress) => {
-    if (!audioRef.current) return
-    audioRef.current.currentTime = nextProgress
-    setProgress(nextProgress)
+    const audio = audioRef.current
+    if (!audio || !Number.isFinite(audio.duration) || audio.duration <= 0) return
+
+    const clamped = Math.min(Math.max(nextProgress, 0), audio.duration)
+    audio.currentTime = clamped
+    setProgress(clamped)
   }
 
   useEffect(() => {
-    if (!audioRef.current) return
+    let isCancelled = false
 
-    const audio = audioRef.current
+    const setupAudioSource = async () => {
+      if (!audioRef.current) return
 
-    if (!currentTrack) {
-      audio.pause()
-      audio.src = ''
-      setIsPlaying(false)
-      setProgress(0)
-      return
+      const audio = audioRef.current
+
+      if (!currentTrack) {
+        audio.pause()
+        audio.src = ''
+        setIsPlaying(false)
+        setProgress(0)
+        return
+      }
+
+      const nextSrc = resolvePlayableStreamUrl(currentTrack)
+      if (isCancelled || !audioRef.current) return
+
+      const browserSrc = nextSrc || `/api/stream/${currentTrack.id}`
+      if (audio.src !== browserSrc) {
+        audio.src = browserSrc
+        audio.load()
+        setProgress(0)
+      }
     }
 
-    const nextSrc = `/api/stream/${currentTrack.id}`
-    if (audio.src !== window.location.origin + nextSrc) {
-      audio.src = nextSrc
-      audio.load()
-      setProgress(0)
+    setupAudioSource()
+
+    return () => {
+      isCancelled = true
     }
   }, [currentTrack])
 
@@ -561,12 +595,16 @@ function App() {
     const audio = audioRef.current
     if (!audio) return
 
+    if (audio.readyState < 2 && isPlaying) {
+      return
+    }
+
     if (isPlaying) {
       audio.play().catch(() => setIsPlaying(false))
     } else {
       audio.pause()
     }
-  }, [isPlaying])
+  }, [isPlaying, currentTrack])
 
   useEffect(() => {
     const audio = audioRef.current
@@ -574,6 +612,9 @@ function App() {
 
     const handleLoaded = () => {
       setDuration(Number.isFinite(audio.duration) ? audio.duration : 0)
+      if (isPlaying) {
+        audio.play().catch(() => setIsPlaying(false))
+      }
     }
 
     const handleTime = () => {
@@ -594,7 +635,7 @@ function App() {
       audio.removeEventListener('timeupdate', handleTime)
       audio.removeEventListener('ended', handleEnded)
     }
-  }, [isRepeat])
+  }, [isRepeat, isPlaying])
 
   useEffect(() => {
     if (screen !== 'home') return
@@ -924,6 +965,29 @@ function App() {
     }
   }
 
+  const renderPlayerBar = () => (
+    currentTrack ? (
+      <PlayerBar
+        currentTrack={currentTrack}
+        isPlaying={isPlaying}
+        progress={progress}
+        duration={duration}
+        isShuffle={isShuffle}
+        isRepeat={isRepeat}
+        onToggle={handleTogglePlayback}
+        onSeek={handleSeek}
+        onPrevious={handlePreviousTrack}
+        onNext={handleNextTrack}
+        onToggleShuffle={handleToggleShuffle}
+        onToggleRepeat={handleToggleRepeat}
+        audioRef={audioRef}
+        onLoadedMetadata={() => setDuration(Number.isFinite(audioRef.current?.duration) ? audioRef.current.duration : 0)}
+        onTimeUpdate={() => setProgress(audioRef.current?.currentTime || 0)}
+        onEnded={handleTrackEnd}
+      />
+    ) : null
+  )
+
   if (screen === 'login' || screen === 'signup') {
     return (
       <AuthPage
@@ -953,32 +1017,35 @@ function App() {
 
   if (screen === 'home') {
     return (
-      <HomePage
-        username={username}
-        setScreen={setScreen}
-        handleLogout={handleLogout}
-        homeLoading={homeLoading}
-        homeError={homeError}
-        homeSongs={homeSongs}
-        homePlaylists={homePlaylists}
-        handlePlayTrack={handlePlayTrack}
-        currentTrack={currentTrack}
-        isPlaying={isPlaying}
-        progress={progress}
-        duration={duration}
-        isShuffle={isShuffle}
-        isRepeat={isRepeat}
-        handleTogglePlayback={handleTogglePlayback}
-        handleSeek={handleSeek}
-        handlePreviousTrack={handlePreviousTrack}
-        handleNextTrack={handleNextTrack}
-        handleToggleShuffle={handleToggleShuffle}
-        handleToggleRepeat={handleToggleRepeat}
-        audioRef={audioRef}
-        setDuration={setDuration}
-        setProgress={setProgress}
-        handleTrackEnd={handleTrackEnd}
-      />
+      <>
+        <HomePage
+          username={username}
+          setScreen={setScreen}
+          handleLogout={handleLogout}
+          homeLoading={homeLoading}
+          homeError={homeError}
+          homeSongs={homeSongs}
+          homePlaylists={homePlaylists}
+          handlePlayTrack={handlePlayTrack}
+          currentTrack={currentTrack}
+          isPlaying={isPlaying}
+          progress={progress}
+          duration={duration}
+          isShuffle={isShuffle}
+          isRepeat={isRepeat}
+          handleTogglePlayback={handleTogglePlayback}
+          handleSeek={handleSeek}
+          handlePreviousTrack={handlePreviousTrack}
+          handleNextTrack={handleNextTrack}
+          handleToggleShuffle={handleToggleShuffle}
+          handleToggleRepeat={handleToggleRepeat}
+          audioRef={audioRef}
+          setDuration={setDuration}
+          setProgress={setProgress}
+          handleTrackEnd={handleTrackEnd}
+        />
+        {renderPlayerBar()}
+      </>
     )
   }
 
@@ -994,160 +1061,208 @@ function App() {
 
   if (screen === 'search') {
     return (
-      <SearchPage
-        username={username}
-        setScreen={setScreen}
-        handleLogout={handleLogout}
-        artists={artists}
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-        searchArtistId={searchArtistId}
-        setSearchArtistId={setSearchArtistId}
-        searchOrder={searchOrder}
-        setSearchOrder={setSearchOrder}
-        searchPage={searchPage}
-        setSearchPage={setSearchPage}
-        searchResults={searchResults}
-        searchLoading={searchLoading}
-        searchError={searchError}
-        searchPagination={searchPagination}
-        handleSearch={handleSearch}
-        handlePlayTrack={handlePlayTrack}
-        currentTrack={currentTrack}
-        isPlaying={isPlaying}
-        progress={progress}
-        duration={duration}
-        isShuffle={isShuffle}
-        isRepeat={isRepeat}
-        handleTogglePlayback={handleTogglePlayback}
-        handleSeek={handleSeek}
-        handlePreviousTrack={handlePreviousTrack}
-        handleNextTrack={handleNextTrack}
-        handleToggleShuffle={handleToggleShuffle}
-        handleToggleRepeat={handleToggleRepeat}
-        audioRef={audioRef}
-        setDuration={setDuration}
-        setProgress={setProgress}
-        handleTrackEnd={handleTrackEnd}
-      />
+      <>
+        <SearchPage
+          username={username}
+          setScreen={setScreen}
+          handleLogout={handleLogout}
+          artists={artists}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          searchArtistId={searchArtistId}
+          setSearchArtistId={setSearchArtistId}
+          searchOrder={searchOrder}
+          setSearchOrder={setSearchOrder}
+          searchPage={searchPage}
+          setSearchPage={setSearchPage}
+          searchResults={searchResults}
+          searchLoading={searchLoading}
+          searchError={searchError}
+          searchPagination={searchPagination}
+          handleSearch={handleSearch}
+          handlePlayTrack={handlePlayTrack}
+          currentTrack={currentTrack}
+          isPlaying={isPlaying}
+          progress={progress}
+          duration={duration}
+          isShuffle={isShuffle}
+          isRepeat={isRepeat}
+          handleTogglePlayback={handleTogglePlayback}
+          handleSeek={handleSeek}
+          handlePreviousTrack={handlePreviousTrack}
+          handleNextTrack={handleNextTrack}
+          handleToggleShuffle={handleToggleShuffle}
+          handleToggleRepeat={handleToggleRepeat}
+          audioRef={audioRef}
+          setDuration={setDuration}
+          setProgress={setProgress}
+          handleTrackEnd={handleTrackEnd}
+        />
+        {renderPlayerBar()}
+      </>
     )
   }
 
   if (screen === 'playlist') {
     return (
-      <PlaylistPage
-        username={username}
-        setScreen={setScreen}
-        handleLogout={handleLogout}
-        playlists={playlists}
-        playlistLoading={playlistLoading}
-        playlistError={playlistError}
-        playlistFormOpen={playlistFormOpen}
-        setPlaylistFormOpen={setPlaylistFormOpen}
-        playlistForm={playlistForm}
-        setPlaylistForm={setPlaylistForm}
-        playlistSubmitting={playlistSubmitting}
-        handleCreatePlaylist={handleCreatePlaylist}
-        handleOpenPlaylistDetail={handleOpenPlaylistDetail}
-        handleDeletePlaylist={handleDeletePlaylist}
-        playlistActionLoadingId={playlistActionLoadingId}
-        currentTrack={currentTrack}
-        isPlaying={isPlaying}
-        progress={progress}
-        duration={duration}
-        isShuffle={isShuffle}
-        isRepeat={isRepeat}
-        handleTogglePlayback={handleTogglePlayback}
-        handleSeek={handleSeek}
-        handlePreviousTrack={handlePreviousTrack}
-        handleNextTrack={handleNextTrack}
-        handleToggleShuffle={handleToggleShuffle}
-        handleToggleRepeat={handleToggleRepeat}
-        audioRef={audioRef}
-        setDuration={setDuration}
-        setProgress={setProgress}
-        handleTrackEnd={handleTrackEnd}
-      />
+      <>
+        <PlaylistPage
+          username={username}
+          setScreen={setScreen}
+          handleLogout={handleLogout}
+          playlists={playlists}
+          playlistLoading={playlistLoading}
+          playlistError={playlistError}
+          playlistFormOpen={playlistFormOpen}
+          setPlaylistFormOpen={setPlaylistFormOpen}
+          playlistForm={playlistForm}
+          setPlaylistForm={setPlaylistForm}
+          playlistSubmitting={playlistSubmitting}
+          handleCreatePlaylist={handleCreatePlaylist}
+          handleOpenPlaylistDetail={handleOpenPlaylistDetail}
+          handleDeletePlaylist={handleDeletePlaylist}
+          playlistActionLoadingId={playlistActionLoadingId}
+          currentTrack={currentTrack}
+          isPlaying={isPlaying}
+          progress={progress}
+          duration={duration}
+          isShuffle={isShuffle}
+          isRepeat={isRepeat}
+          handleTogglePlayback={handleTogglePlayback}
+          handleSeek={handleSeek}
+          handlePreviousTrack={handlePreviousTrack}
+          handleNextTrack={handleNextTrack}
+          handleToggleShuffle={handleToggleShuffle}
+          handleToggleRepeat={handleToggleRepeat}
+          audioRef={audioRef}
+          setDuration={setDuration}
+          setProgress={setProgress}
+          handleTrackEnd={handleTrackEnd}
+        />
+        {renderPlayerBar()}
+      </>
     )
   }
 
   if (screen === 'playlist-detail') {
     return (
-      <PlaylistDetailPage
-        username={username}
-        setScreen={setScreen}
-        handleLogout={handleLogout}
-        selectedPlaylist={selectedPlaylist}
-        playlistDetail={playlistDetail}
-        playlistDetailError={playlistDetailError}
-        playlistDetailLoading={playlistDetailLoading}
-        detailSongs={Array.isArray(playlistDetail?.songs) ? playlistDetail.songs : []}
-        handleDeletePlaylist={handleDeletePlaylist}
-        handleDeleteSongFromPlaylist={handleDeleteSongFromPlaylist}
-        playlistActionLoadingId={playlistActionLoadingId}
-        playlistSongActionLoadingId={playlistSongActionLoadingId}
-        handlePlayTrack={handlePlayTrack}
-        currentTrack={currentTrack}
-        isPlaying={isPlaying}
-        progress={progress}
-        duration={duration}
-        isShuffle={isShuffle}
-        isRepeat={isRepeat}
-        handleTogglePlayback={handleTogglePlayback}
-        handleSeek={handleSeek}
-        handlePreviousTrack={handlePreviousTrack}
-        handleNextTrack={handleNextTrack}
-        handleToggleShuffle={handleToggleShuffle}
-        handleToggleRepeat={handleToggleRepeat}
-        audioRef={audioRef}
-        setDuration={setDuration}
-        setProgress={setProgress}
-        handleTrackEnd={handleTrackEnd}
-      />
+      <>
+        <PlaylistDetailPage
+          username={username}
+          setScreen={setScreen}
+          handleLogout={handleLogout}
+          selectedPlaylist={selectedPlaylist}
+          playlistDetail={playlistDetail}
+          playlistDetailError={playlistDetailError}
+          playlistDetailLoading={playlistDetailLoading}
+          detailSongs={Array.isArray(playlistDetail?.songs) ? playlistDetail.songs : []}
+          handleDeletePlaylist={handleDeletePlaylist}
+          handleDeleteSongFromPlaylist={handleDeleteSongFromPlaylist}
+          playlistActionLoadingId={playlistActionLoadingId}
+          playlistSongActionLoadingId={playlistSongActionLoadingId}
+          handlePlayTrack={handlePlayTrack}
+          currentTrack={currentTrack}
+          isPlaying={isPlaying}
+          progress={progress}
+          duration={duration}
+          isShuffle={isShuffle}
+          isRepeat={isRepeat}
+          handleTogglePlayback={handleTogglePlayback}
+          handleSeek={handleSeek}
+          handlePreviousTrack={handlePreviousTrack}
+          handleNextTrack={handleNextTrack}
+          handleToggleShuffle={handleToggleShuffle}
+          handleToggleRepeat={handleToggleRepeat}
+          audioRef={audioRef}
+          setDuration={setDuration}
+          setProgress={setProgress}
+          handleTrackEnd={handleTrackEnd}
+        />
+        {renderPlayerBar()}
+      </>
     )
   }
 
   if (screen === 'artist') {
     return (
-      <ArtistPage
-        username={username}
-        setScreen={setScreen}
-        handleLogout={handleLogout}
-        artists={artists}
-        artistLoading={artistLoading}
-        artistError={artistError}
-        handleOpenArtistDetail={handleOpenArtistDetail}
-        currentTrack={currentTrack}
-        isPlaying={isPlaying}
-        progress={progress}
-        duration={duration}
-        isShuffle={isShuffle}
-        isRepeat={isRepeat}
-        handleTogglePlayback={handleTogglePlayback}
-        handleSeek={handleSeek}
-        handlePreviousTrack={handlePreviousTrack}
-        handleNextTrack={handleNextTrack}
-        handleToggleShuffle={handleToggleShuffle}
-        handleToggleRepeat={handleToggleRepeat}
-        audioRef={audioRef}
-        setDuration={setDuration}
-        setProgress={setProgress}
-        handleTrackEnd={handleTrackEnd}
-      />
+      <>
+        <ArtistPage
+          username={username}
+          setScreen={setScreen}
+          handleLogout={handleLogout}
+          artists={artists}
+          artistLoading={artistLoading}
+          artistError={artistError}
+          handleOpenArtistDetail={handleOpenArtistDetail}
+          currentTrack={currentTrack}
+          isPlaying={isPlaying}
+          progress={progress}
+          duration={duration}
+          isShuffle={isShuffle}
+          isRepeat={isRepeat}
+          handleTogglePlayback={handleTogglePlayback}
+          handleSeek={handleSeek}
+          handlePreviousTrack={handlePreviousTrack}
+          handleNextTrack={handleNextTrack}
+          handleToggleShuffle={handleToggleShuffle}
+          handleToggleRepeat={handleToggleRepeat}
+          audioRef={audioRef}
+          setDuration={setDuration}
+          setProgress={setProgress}
+          handleTrackEnd={handleTrackEnd}
+        />
+        {renderPlayerBar()}
+      </>
     )
   }
 
   if (screen === 'artist-detail') {
     return (
-      <ArtistDetailPage
+      <>
+        <ArtistDetailPage
+          username={username}
+          setScreen={setScreen}
+          handleLogout={handleLogout}
+          selectedArtist={selectedArtist}
+          artistDetail={artistDetail}
+          artistDetailError={artistDetailError}
+          artistDetailLoading={artistDetailLoading}
+          handlePlayTrack={handlePlayTrack}
+          currentTrack={currentTrack}
+          isPlaying={isPlaying}
+          progress={progress}
+          duration={duration}
+          isShuffle={isShuffle}
+          isRepeat={isRepeat}
+          handleTogglePlayback={handleTogglePlayback}
+          handleSeek={handleSeek}
+          handlePreviousTrack={handlePreviousTrack}
+          handleNextTrack={handleNextTrack}
+          handleToggleShuffle={handleToggleShuffle}
+          handleToggleRepeat={handleToggleRepeat}
+          audioRef={audioRef}
+          setDuration={setDuration}
+          setProgress={setProgress}
+          handleTrackEnd={handleTrackEnd}
+        />
+        {renderPlayerBar()}
+      </>
+    )
+  }
+
+  return (
+    <>
+      <ProfilePage
         username={username}
         setScreen={setScreen}
         handleLogout={handleLogout}
-        selectedArtist={selectedArtist}
-        artistDetail={artistDetail}
-        artistDetailError={artistDetailError}
-        artistDetailLoading={artistDetailLoading}
-        handlePlayTrack={handlePlayTrack}
+        profile={profile}
+        profileLoading={profileLoading}
+        profileError={profileError}
+        profileForm={profileForm}
+        setProfileForm={setProfileForm}
+        profileSaving={profileSaving}
+        handleProfileSave={handleProfileSave}
         currentTrack={currentTrack}
         isPlaying={isPlaying}
         progress={progress}
@@ -1165,38 +1280,8 @@ function App() {
         setProgress={setProgress}
         handleTrackEnd={handleTrackEnd}
       />
-    )
-  }
-
-  return (
-    <ProfilePage
-      username={username}
-      setScreen={setScreen}
-      handleLogout={handleLogout}
-      profile={profile}
-      profileLoading={profileLoading}
-      profileError={profileError}
-      profileForm={profileForm}
-      setProfileForm={setProfileForm}
-      profileSaving={profileSaving}
-      handleProfileSave={handleProfileSave}
-      currentTrack={currentTrack}
-      isPlaying={isPlaying}
-      progress={progress}
-      duration={duration}
-      isShuffle={isShuffle}
-      isRepeat={isRepeat}
-      handleTogglePlayback={handleTogglePlayback}
-      handleSeek={handleSeek}
-      handlePreviousTrack={handlePreviousTrack}
-      handleNextTrack={handleNextTrack}
-      handleToggleShuffle={handleToggleShuffle}
-      handleToggleRepeat={handleToggleRepeat}
-      audioRef={audioRef}
-      setDuration={setDuration}
-      setProgress={setProgress}
-      handleTrackEnd={handleTrackEnd}
-    />
+      {renderPlayerBar()}
+    </>
   )
 }
 

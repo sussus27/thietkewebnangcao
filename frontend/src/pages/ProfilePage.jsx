@@ -1,4 +1,3 @@
-import { PlayerBar } from '../components/PlayerBar'
 import { SpotifyIcon } from '../components/SpotifyIcon'
 
 export function ProfilePage({
@@ -111,25 +110,6 @@ export function ProfilePage({
           </form>
         </section>
       </main>
-
-      <PlayerBar
-        currentTrack={currentTrack}
-        isPlaying={isPlaying}
-        progress={progress}
-        duration={duration}
-        isShuffle={isShuffle}
-        isRepeat={isRepeat}
-        onToggle={handleTogglePlayback}
-        onSeek={handleSeek}
-        onPrevious={handlePreviousTrack}
-        onNext={handleNextTrack}
-        onToggleShuffle={handleToggleShuffle}
-        onToggleRepeat={handleToggleRepeat}
-        audioRef={audioRef}
-        onLoadedMetadata={() => setDuration(Number.isFinite(audioRef.current?.duration) ? audioRef.current.duration : 0)}
-        onTimeUpdate={() => setProgress(audioRef.current?.currentTime || 0)}
-        onEnded={handleTrackEnd}
-      />
     </div>
   )
 }
