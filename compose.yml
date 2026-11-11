@@ -71,6 +71,11 @@ services:
       - /bin/sh
       - -c
       - |
+        set -- /demo-audio/*
+        if [ ! -e "$$1" ]; then
+          echo "no demo audio in frontend/public/demo/audio, skipping MinIO seed"
+          exit 0
+        fi
         mc alias set seed "$$MINIO_ENDPOINT" "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD" > /dev/null &&
         mc mb --ignore-existing "seed/$$MINIO_BUCKET" > /dev/null &&
         mc cp --recursive /demo-audio/ "seed/$$MINIO_BUCKET/demo/audio/" > /dev/null &&
@@ -187,8 +192,6 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
-      demo-audio:
-        condition: service_completed_successfully
     ports:
       - "4003:4003"
     healthcheck:
@@ -217,8 +220,6 @@ services:
         condition: service_healthy
       music-service:
         condition: service_healthy
-      demo-audio:
-        condition: service_completed_successfully
     ports:
       - "4002:4002"
     healthcheck:
