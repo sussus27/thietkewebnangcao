@@ -1,3 +1,5 @@
+import { useState } from 'react'
+import { PlaylistPickerModal } from '../components/PlaylistPickerModal'
 import { SpotifyIcon } from '../components/SpotifyIcon'
 import { formatDuration } from '../utils/formatDuration'
 
@@ -9,6 +11,10 @@ export function HomePage({
   homeError,
   homeSongs,
   homePlaylists,
+  playlists = [],
+  handleOpenPlaylistDetail,
+  handleAddSongToPlaylist,
+  playlistAddLoadingId,
   handlePlayTrack,
   currentTrack,
   isPlaying,
@@ -27,6 +33,23 @@ export function HomePage({
   setProgress,
   handleTrackEnd,
 }) {
+  const [pickerSong, setPickerSong] = useState(null)
+
+  const openPlaylistPicker = (song) => {
+    setPickerSong(song)
+  }
+
+  const handlePickerSelect = async (playlistId) => {
+    if (!pickerSong || !playlistId) {
+      return
+    }
+
+    const success = await handleAddSongToPlaylist(pickerSong.id, playlistId)
+    if (success) {
+      setPickerSong(null)
+    }
+  }
+
   return (
     <div className="home-page">
       <aside className="sidebar">
@@ -49,8 +72,16 @@ export function HomePage({
             {homePlaylists.length === 0 ? (
               <li>Chưa có playlist nào</li>
             ) : (
-              homePlaylists.slice(0, 3).map((playlist) => (
-                <li key={playlist.id}>{playlist.name || 'Playlist'}</li>
+              homePlaylists.map((playlist) => (
+                <li key={playlist.id}>
+                  <button
+                    type="button"
+                    className="sidebar-playlist-link"
+                    onClick={() => handleOpenPlaylistDetail?.(playlist)}
+                  >
+                    {playlist.name || 'Playlist'}
+                  </button>
+                </li>
               ))
             )}
           </ul>
@@ -76,7 +107,22 @@ export function HomePage({
             <p>Nghe gì hôm nay</p>
             <h3>Khám phá âm nhạc mới</h3>
           </div>
-          <button type="button" className="hero-button" onClick={() => setScreen('search')}>Phát nhạc</button>
+          <button
+            type="button"
+            className="hero-button"
+            onClick={() => {
+              if (!homeSongs.length) {
+                setScreen('search')
+                return
+              }
+
+              const randomIndex = Math.floor(Math.random() * homeSongs.length)
+              const randomTrack = homeSongs[randomIndex]
+              handlePlayTrack(randomTrack, homeSongs)
+            }}
+          >
+            Phát nhạc
+          </button>
         </section>
 
         <section className="section-block">
@@ -98,8 +144,21 @@ export function HomePage({
                 <p>Chưa có playlist nào.</p>
               </div>
             ) : (
-              homePlaylists.slice(0, 4).map((playlist) => (
-                <article key={playlist.id} className="playlist-card" style={{ background: 'linear-gradient(135deg, #1db954, #0b3d2a)' }}>
+              homePlaylists.map((playlist) => (
+                <article
+                  key={playlist.id}
+                  className="playlist-card playlist-card-button"
+                  style={{ background: 'linear-gradient(135deg, #1db954, #0b3d2a)' }}
+                  onClick={() => handleOpenPlaylistDetail?.(playlist)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault()
+                      handleOpenPlaylistDetail?.(playlist)
+                    }
+                  }}
+                  role="button"
+                  tabIndex={0}
+                >
                   <strong>{playlist.name || 'Playlist'}</strong>
                   <small>{playlist.song_count ?? 0} bài hát</small>
                 </article>
@@ -133,21 +192,31 @@ export function HomePage({
                 <p>Chưa có bài hát nào.</p>
               </div>
             ) : (
-              homeSongs.slice(0, 4).map((song) => {
+              homeSongs.map((song) => {
                 const artistText = Array.isArray(song.artists) && song.artists.length > 0
                   ? song.artists.join(', ')
                   : 'Nghệ sĩ không xác định'
 
                 return (
-                  <div key={song.id} className="track-row" onClick={() => handlePlayTrack(song, homeSongs.slice(0, 4))} style={{ cursor: 'pointer' }}>
-                    <div className="track-meta">
+                  <div key={song.id} className="track-row" style={{ cursor: 'default' }}>
+                    <div className="track-meta" onClick={() => handlePlayTrack(song, homeSongs)} style={{ cursor: 'pointer', flex: 1 }}>
                       <div className="track-art" aria-hidden="true" style={{ backgroundImage: song.cover_url ? `url(${song.cover_url})` : 'linear-gradient(135deg, #1db954, #0b3d2a)' }} />
                       <div>
                         <strong>{song.title || 'Không có tiêu đề'}</strong>
                         <small>{artistText}</small>
                       </div>
                     </div>
-                    <span>{song.duration_seconds ? formatDuration(song.duration_seconds) : '0:00'}</span>
+                    <div className="song-actions">
+                      <span>{song.duration_seconds ? formatDuration(song.duration_seconds) : '0:00'}</span>
+                      <button
+                        type="button"
+                        className="playlist-add-button"
+                        onClick={() => openPlaylistPicker(song)}
+                        disabled={playlists.length === 0 || playlistAddLoadingId === song.id}
+                      >
+                        {playlistAddLoadingId === song.id ? 'Đang thêm...' : 'Thêm'}
+                      </button>
+                    </div>
                   </div>
                 )
               })
@@ -155,6 +224,15 @@ export function HomePage({
           </div>
         </section>
       </main>
+
+      <PlaylistPickerModal
+        open={Boolean(pickerSong)}
+        song={pickerSong}
+        playlists={playlists}
+        loadingSongId={playlistAddLoadingId}
+        onClose={() => setPickerSong(null)}
+        onSelect={handlePickerSelect}
+      />
     </div>
   )
 }

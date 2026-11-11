@@ -47,9 +47,21 @@ export function ProfilePage({
         <div className="playlist-box">
           <h3>Tài khoản</h3>
           <ul>
-            <li>Thông tin</li>
-            <li>Bảo mật</li>
-            <li>Giao diện</li>
+            <li>
+              <button type="button" className="sidebar-playlist-link" onClick={() => setScreen('profile')}>
+                Thông tin
+              </button>
+            </li>
+            <li>
+              <button type="button" className="sidebar-playlist-link" onClick={() => setScreen('home')}>
+                Bảo mật
+              </button>
+            </li>
+            <li>
+              <button type="button" className="sidebar-playlist-link" onClick={() => setScreen('playlist')}>
+                Giao diện
+              </button>
+            </li>
           </ul>
         </div>
       </aside>

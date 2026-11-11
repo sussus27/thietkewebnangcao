@@ -1,3 +1,5 @@
+import { useState } from 'react'
+import { PlaylistPickerModal } from '../components/PlaylistPickerModal'
 import { SpotifyIcon } from '../components/SpotifyIcon'
 
 export function SearchPage({
@@ -5,6 +7,9 @@ export function SearchPage({
   setScreen,
   handleLogout,
   artists = [],
+  playlists = [],
+  handleAddSongToPlaylist,
+  playlistAddLoadingId,
   searchQuery,
   setSearchQuery,
   searchArtistId,
@@ -38,6 +43,22 @@ export function SearchPage({
 }) {
   const totalPages = Number(searchPagination?.totalPages) || 0
   const currentPage = Number(searchPagination?.page) || searchPage || 1
+  const [pickerSong, setPickerSong] = useState(null)
+
+  const openPlaylistPicker = (song) => {
+    setPickerSong(song)
+  }
+
+  const handlePickerSelect = async (playlistId) => {
+    if (!pickerSong || !playlistId) {
+      return
+    }
+
+    const success = await handleAddSongToPlaylist(pickerSong.id, playlistId)
+    if (success) {
+      setPickerSong(null)
+    }
+  }
 
   return (
     <div className="home-page">
@@ -55,14 +76,6 @@ export function SearchPage({
           <button type="button" className="nav-link" onClick={() => setScreen('profile')}>Hồ sơ</button>
         </nav>
 
-        <div className="playlist-box">
-          <h3>Gợi ý</h3>
-          <ul>
-            <li>Pop</li>
-            <li>Acoustic</li>
-            <li>Indie</li>
-          </ul>
-        </div>
       </aside>
 
       <main className="content-panel">
@@ -159,6 +172,14 @@ export function SearchPage({
                   <div className="song-actions">
                     <span>{song.duration_seconds ? `${Math.floor(song.duration_seconds / 60)}:${String(song.duration_seconds % 60).padStart(2, '0')}` : '—'}</span>
                     <button type="button" onClick={() => handlePlayTrack(song, searchResults)}>Phát</button>
+                    <button
+                      type="button"
+                      className="playlist-add-button"
+                      onClick={() => openPlaylistPicker(song)}
+                      disabled={playlists.length === 0 || playlistAddLoadingId === song.id}
+                    >
+                      {playlistAddLoadingId === song.id ? 'Đang thêm...' : 'Thêm'}
+                    </button>
                   </div>
                 </div>
               )
@@ -166,6 +187,15 @@ export function SearchPage({
           </div>
         </section>
       </main>
+
+      <PlaylistPickerModal
+        open={Boolean(pickerSong)}
+        song={pickerSong}
+        playlists={playlists}
+        loadingSongId={playlistAddLoadingId}
+        onClose={() => setPickerSong(null)}
+        onSelect={handlePickerSelect}
+      />
     </div>
   )
 }

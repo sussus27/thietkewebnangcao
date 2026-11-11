@@ -17,6 +17,9 @@ export function AdminPage({ username, setScreen, handleLogout }) {
   const [editingArtistId, setEditingArtistId] = useState(null)
   const [editingSongId, setEditingSongId] = useState(null)
   const [loadingCatalog, setLoadingCatalog] = useState(false)
+  const [songUploadFile, setSongUploadFile] = useState(null)
+  const [songCoverFile, setSongCoverFile] = useState(null)
+  const [songUploading, setSongUploading] = useState(false)
 
   useEffect(() => {
     const loadUsers = async () => {
@@ -54,51 +57,51 @@ export function AdminPage({ username, setScreen, handleLogout }) {
     loadUsers()
   }, [setScreen])
 
-  useEffect(() => {
-    const loadCatalog = async () => {
-      const token = localStorage.getItem('spotify_token')
+  const loadCatalog = async () => {
+    const token = localStorage.getItem('spotify_token')
 
-      if (!token) {
-        setScreen('login')
-        return
-      }
-
-      if (!['artists', 'songs', 'overview'].includes(adminView)) {
-        return
-      }
-
-      setLoadingCatalog(true)
-
-      try {
-        const [artistsResponse, songsResponse] = await Promise.all([
-          fetch('/api/artists?limit=50', {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-          fetch('/api/songs?limit=50', {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-        ])
-
-        const artistsData = await artistsResponse.json()
-        const songsData = await songsResponse.json()
-
-        if (!artistsResponse.ok) {
-          throw new Error(artistsData?.message || 'Không thể tải danh sách nghệ sĩ.')
-        }
-
-        if (!songsResponse.ok) {
-          throw new Error(songsData?.message || 'Không thể tải danh sách bài hát.')
-        }
-
-        setArtists(Array.isArray(artistsData?.data) ? artistsData.data : [])
-        setSongs(Array.isArray(songsData?.data) ? songsData.data : [])
-      } catch (error_) {
-        setError(error_.message || 'Có lỗi xảy ra khi tải danh mục admin.')
-      } finally {
-        setLoadingCatalog(false)
-      }
+    if (!token) {
+      setScreen('login')
+      return
     }
 
+    if (!['artists', 'songs', 'overview'].includes(adminView)) {
+      return
+    }
+
+    setLoadingCatalog(true)
+
+    try {
+      const [artistsResponse, songsResponse] = await Promise.all([
+        fetch('/api/artists?limit=50', {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch('/api/songs?limit=50', {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+      ])
+
+      const artistsData = await artistsResponse.json()
+      const songsData = await songsResponse.json()
+
+      if (!artistsResponse.ok) {
+        throw new Error(artistsData?.message || 'Không thể tải danh sách nghệ sĩ.')
+      }
+
+      if (!songsResponse.ok) {
+        throw new Error(songsData?.message || 'Không thể tải danh sách bài hát.')
+      }
+
+      setArtists(Array.isArray(artistsData?.data) ? artistsData.data : [])
+      setSongs(Array.isArray(songsData?.data) ? songsData.data : [])
+    } catch (error_) {
+      setError(error_.message || 'Có lỗi xảy ra khi tải danh mục admin.')
+    } finally {
+      setLoadingCatalog(false)
+    }
+  }
+
+  useEffect(() => {
     loadCatalog()
   }, [adminView, setScreen])
 
@@ -236,6 +239,104 @@ export function AdminPage({ username, setScreen, handleLogout }) {
     }
   }
 
+  const handleSongFileUpload = async (file, customTitle) => {
+    if (!file) {
+      return
+    }
+
+    const token = localStorage.getItem('spotify_token')
+
+    if (!token) {
+      setScreen('login')
+      return
+    }
+
+    if (!file.type.startsWith('audio/')) {
+      setError('Chỉ hỗ trợ các file audio hợp lệ.')
+      return
+    }
+
+    setSongUploading(true)
+    setError('')
+
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const resolvedTitle = (customTitle || file.name || '').trim()
+      if (resolvedTitle) {
+        formData.append('title', resolvedTitle)
+      }
+
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      })
+
+      const data = await response.json().catch(() => ({}))
+
+      if (!response.ok) {
+        throw new Error(data?.message || 'Không thể upload bài hát lên server.')
+      }
+
+      const uploadedObjectKey = data?.data?.objectKey || ''
+      const uploadedDuration = Number(data?.data?.durationSeconds || 0)
+
+      setSongForm((previous) => ({
+        ...previous,
+        title: previous.title || resolvedTitle || file.name.replace(/\.[^/.]+$/, ''),
+        audioUrl: uploadedObjectKey ? `uploaded:${uploadedObjectKey}` : previous.audioUrl,
+        durationSeconds: uploadedDuration > 0 ? String(uploadedDuration) : previous.durationSeconds,
+      }))
+
+      setSongUploadFile(file)
+      await loadCatalog()
+      setError('')
+    } catch (error_) {
+      setError(error_?.message || 'Có lỗi xảy ra khi upload bài hát.')
+    } finally {
+      setSongUploading(false)
+    }
+  }
+
+  const handleSongCoverSelect = async (event) => {
+    const selectedFile = event.target.files?.[0]
+
+    if (!selectedFile) {
+      setSongCoverFile(null)
+      return
+    }
+
+    if (!selectedFile.type.startsWith('image/')) {
+      setError('Chỉ hỗ trợ file ảnh cho bìa bài hát.')
+      setSongCoverFile(null)
+      event.target.value = ''
+      return
+    }
+
+    const reader = new FileReader()
+
+    reader.onload = () => {
+      const dataUrl = String(reader.result || '')
+      setSongForm((previous) => ({
+        ...previous,
+        coverUrl: dataUrl,
+      }))
+      setSongCoverFile(selectedFile)
+      setError('')
+    }
+
+    reader.onerror = () => {
+      setError('Không thể đọc file ảnh bìa.')
+      setSongCoverFile(null)
+    }
+
+    reader.readAsDataURL(selectedFile)
+  }
+
   const handleSongSubmit = async (event) => {
     event.preventDefault()
 
@@ -257,7 +358,7 @@ export function AdminPage({ username, setScreen, handleLogout }) {
     }
 
     if (!trimmedAudioUrl) {
-      setError('URL audio không được để trống.')
+      setError('URL audio hoặc file audio không được để trống.')
       return
     }
 
@@ -300,6 +401,8 @@ export function AdminPage({ username, setScreen, handleLogout }) {
       setSongs(nextSongs)
       setSongForm(defaultSongForm)
       setEditingSongId(null)
+      setSongUploadFile(null)
+      setSongCoverFile(null)
       setError('')
     } catch (error_) {
       setError(error_.message || 'Có lỗi xảy ra khi lưu bài hát.')
@@ -388,6 +491,7 @@ export function AdminPage({ username, setScreen, handleLogout }) {
       durationSeconds: song.duration_seconds || song.durationSeconds || '',
       artistIds: Array.isArray(song.artists) ? song.artists.map((artist) => artist.id) : [],
     })
+    setSongCoverFile(null)
     setEditingSongId(song.id)
     setAdminView('songs')
   }
@@ -406,6 +510,9 @@ export function AdminPage({ username, setScreen, handleLogout }) {
 
   const adminCount = users.filter((user) => user.role === 'admin').length
   const listenerCount = users.filter((user) => user.role === 'listener').length
+  const songCoverPreview = songForm.coverUrl
+    ? `url(${songForm.coverUrl})`
+    : 'linear-gradient(135deg, rgba(29, 185, 84, 0.52), rgba(12, 37, 25, 0.92))'
 
   return (
     <div className="home-page">
@@ -423,14 +530,6 @@ export function AdminPage({ username, setScreen, handleLogout }) {
           <button type="button" className={`nav-link ${adminView === 'settings' ? 'active' : ''}`} onClick={() => setAdminView('settings')}>Cài đặt</button>
         </nav>
 
-        <div className="playlist-box">
-          <h3>Hệ thống</h3>
-          <ul>
-            <li>Quản lý người dùng</li>
-            <li>Nghệ sĩ & bài hát</li>
-            <li>Phân quyền admin</li>
-          </ul>
-        </div>
       </aside>
 
       <main className="content-panel">
@@ -587,47 +686,101 @@ export function AdminPage({ username, setScreen, handleLogout }) {
 
               {error ? <p className="form-error admin-error">{error}</p> : null}
 
-              <form className="admin-form" onSubmit={handleSongSubmit}>
-                <label className="field-label">
-                  <span>Tên bài hát</span>
-                  <input type="text" value={songForm.title} onChange={(event) => setSongForm({ ...songForm, title: event.target.value })} placeholder="Nhập tên bài hát" />
-                </label>
+              <form className="admin-form song-form-shell" onSubmit={handleSongSubmit}>
+                <div className="song-form-layout">
+                  <div className="song-form-main">
+                    <label className="field-label">
+                      <span>File audio từ máy</span>
+                      <input
+                        type="file"
+                        accept="audio/*"
+                        onChange={async (event) => {
+                          const selectedFile = event.target.files?.[0]
 
-                <label className="field-label">
-                  <span>URL audio</span>
-                  <input type="text" value={songForm.audioUrl} onChange={(event) => setSongForm({ ...songForm, audioUrl: event.target.value })} placeholder="https://.../song.mp3" />
-                </label>
+                          if (!selectedFile) {
+                            setSongUploadFile(null)
+                            return
+                          }
 
-                <label className="field-label">
-                  <span>URL cover</span>
-                  <input type="text" value={songForm.coverUrl} onChange={(event) => setSongForm({ ...songForm, coverUrl: event.target.value })} placeholder="https://.../cover.jpg" />
-                </label>
+                          if (!songForm.title.trim()) {
+                            const fileNameWithoutExt = selectedFile.name.replace(/\.[^/.]+$/, '')
+                            setSongForm((previous) => ({ ...previous, title: fileNameWithoutExt }))
+                          }
 
-                <label className="field-label">
-                  <span>Thời lượng (giây)</span>
-                  <input type="number" min="1" value={songForm.durationSeconds} onChange={(event) => setSongForm({ ...songForm, durationSeconds: event.target.value })} placeholder="180" />
-                </label>
+                          await handleSongFileUpload(selectedFile, songForm.title || selectedFile.name)
+                        }}
+                      />
+                      {songUploadFile ? (
+                        <small className="helper-text success-text">
+                          Đã upload: {songUploadFile.name}
+                        </small>
+                      ) : (
+                        <small className="helper-text">
+                          Chỉ cần chọn file là backend sẽ xử lý phần audio và thời lượng cho bạn.
+                        </small>
+                      )}
+                    </label>
 
-                <div className="admin-artist-picker">
-                  <span>Chọn nghệ sĩ</span>
-                  <div className="artist-picker-list">
-                    {artists.map((artist) => (
-                      <label key={artist.id} className="artist-picker-item">
-                        <input
-                          type="checkbox"
-                          checked={songForm.artistIds.includes(artist.id)}
-                          onChange={() => handleArtistSelection(artist.id)}
-                        />
-                        <span>{artist.name}</span>
-                      </label>
-                    ))}
+                    <label className="field-label">
+                      <span>Tên bài hát</span>
+                      <input type="text" value={songForm.title} onChange={(event) => setSongForm({ ...songForm, title: event.target.value })} placeholder="Nhập tên bài hát nếu muốn đổi" />
+                    </label>
+
+                    <div className="admin-artist-picker">
+                      <span>Chọn nghệ sĩ</span>
+                      <div className="artist-picker-list">
+                        {artists.map((artist) => (
+                          <label
+                            key={artist.id}
+                            className={`artist-picker-item ${songForm.artistIds.includes(artist.id) ? 'selected' : ''}`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={songForm.artistIds.includes(artist.id)}
+                              onChange={() => handleArtistSelection(artist.id)}
+                            />
+                            <span>{artist.name}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="song-form-side">
+                    <div className="cover-upload-card">
+                      <div className="cover-preview" style={{ backgroundImage: songCoverPreview }} />
+                      <div className="cover-upload-info">
+                        <span>Ảnh bìa</span>
+                        <strong>{songCoverFile ? songCoverFile.name : 'Chưa có ảnh'}</strong>
+                      </div>
+                    </div>
+
+                    <label className="field-label upload-field">
+                      <span>Tải ảnh bìa</span>
+                      <input type="file" accept="image/*" onChange={handleSongCoverSelect} />
+                      {songCoverFile ? (
+                        <small className="helper-text success-text">
+                          Đã chọn ảnh bìa: {songCoverFile.name}
+                        </small>
+                      ) : songForm.coverUrl ? (
+                        <small className="helper-text">
+                          Ảnh bìa hiện có đã được giữ lại.
+                        </small>
+                      ) : (
+                        <small className="helper-text">
+                          Chọn ảnh bìa từ máy để lưu trực tiếp trong bài hát.
+                        </small>
+                      )}
+                    </label>
                   </div>
                 </div>
 
                 <div className="admin-form-actions">
-                  <button type="submit" className="primary-button">{editingSongId ? 'Lưu thay đổi' : 'Thêm bài hát'}</button>
+                  <button type="submit" className="primary-button" disabled={songUploading}>
+                    {songUploading ? 'Đang upload...' : 'Hoàn tất'}
+                  </button>
                   {editingSongId ? (
-                    <button type="button" className="logout-button" onClick={() => { setEditingSongId(null); setSongForm(defaultSongForm) }}>
+                    <button type="button" className="logout-button" onClick={() => { setEditingSongId(null); setSongForm(defaultSongForm); setSongUploadFile(null); setSongCoverFile(null) }}>
                       Hủy
                     </button>
                   ) : null}

@@ -102,6 +102,7 @@ function App() {
   const [playlistSubmitting, setPlaylistSubmitting] = useState(false)
   const [playlistActionLoadingId, setPlaylistActionLoadingId] = useState(null)
   const [playlistSongActionLoadingId, setPlaylistSongActionLoadingId] = useState(null)
+  const [playlistAddLoadingId, setPlaylistAddLoadingId] = useState(null)
 
   const [homeSongs, setHomeSongs] = useState([])
   const [homePlaylists, setHomePlaylists] = useState([])
@@ -417,6 +418,52 @@ function App() {
     }
   }
 
+  const handleAddSongToPlaylist = async (songId, playlistId) => {
+    if (!songId || !playlistId) {
+      return false
+    }
+
+    const token = localStorage.getItem('spotify_token')
+
+    if (!token) {
+      setScreen('login')
+      return false
+    }
+
+    setPlaylistAddLoadingId(songId)
+    setPlaylistDetailError('')
+
+    try {
+      const response = await fetch(`/api/playlists/${playlistId}/songs`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ songId }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        const message = data?.message || 'Không thể thêm bài hát vào playlist.'
+        throw new Error(message)
+      }
+
+      if (selectedPlaylist?.id === playlistId) {
+        setPlaylistDetail(data?.data || null)
+      }
+
+      await fetchPlaylists()
+      return true
+    } catch (error_) {
+      setPlaylistDetailError(error_.message || 'Có lỗi xảy ra khi thêm bài hát vào playlist.')
+      return false
+    } finally {
+      setPlaylistAddLoadingId(null)
+    }
+  }
+
   const handleOpenPlaylistDetail = async (playlist) => {
     const token = localStorage.getItem('spotify_token')
 
@@ -658,8 +705,8 @@ function App() {
               Authorization: `Bearer ${token}`,
             },
           }),
-          fetch('/api/songs?limit=6'),
-          fetch('/api/playlists?limit=4', {
+          fetch('/api/songs?limit=50'),
+          fetch('/api/playlists?limit=50', {
             headers: {
               Authorization: `Bearer ${token}`,
             },
@@ -705,8 +752,9 @@ function App() {
   }, [screen])
 
   useEffect(() => {
-    if (screen !== 'playlist') return
-    fetchPlaylists()
+    if (screen === 'playlist' || screen === 'home' || screen === 'search') {
+      fetchPlaylists()
+    }
   }, [screen])
 
   useEffect(() => {
@@ -1026,6 +1074,10 @@ function App() {
           homeError={homeError}
           homeSongs={homeSongs}
           homePlaylists={homePlaylists}
+          playlists={playlists}
+          handleOpenPlaylistDetail={handleOpenPlaylistDetail}
+          handleAddSongToPlaylist={handleAddSongToPlaylist}
+          playlistAddLoadingId={playlistAddLoadingId}
           handlePlayTrack={handlePlayTrack}
           currentTrack={currentTrack}
           isPlaying={isPlaying}
@@ -1067,6 +1119,9 @@ function App() {
           setScreen={setScreen}
           handleLogout={handleLogout}
           artists={artists}
+          playlists={playlists}
+          handleAddSongToPlaylist={handleAddSongToPlaylist}
+          playlistAddLoadingId={playlistAddLoadingId}
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
           searchArtistId={searchArtistId}

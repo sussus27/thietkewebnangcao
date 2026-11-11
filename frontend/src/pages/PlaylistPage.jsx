@@ -49,14 +49,6 @@ export function PlaylistPage({
           <button type="button" className="nav-link" onClick={() => setScreen('profile')}>Hồ sơ</button>
         </nav>
 
-        <div className="playlist-box">
-          <h3>Quản lý</h3>
-          <ul>
-            <li>Playlist mới</li>
-            <li>Đã thích</li>
-            <li>Yêu thích</li>
-          </ul>
-        </div>
       </aside>
 
       <main className="content-panel">
@@ -105,7 +97,7 @@ export function PlaylistPage({
                 <button type="submit" className="primary-button small-button" disabled={playlistSubmitting}>
                   {playlistSubmitting ? 'Đang lưu...' : 'Lưu playlist'}
                 </button>
-                <button type="button" className="logout-button small-button" onClick={() => setPlaylistFormOpen(false)}>
+                <button type="button" className="back-button ghost" onClick={() => setPlaylistFormOpen(false)}>
                   Hủy
                 </button>
               </div>

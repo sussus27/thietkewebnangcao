@@ -89,8 +89,8 @@ export function PlaylistDetailPage({
                 }}>
                   Phát tất cả
                 </button>
-                <button type="button" className="logout-button small-button" onClick={() => setScreen('playlist')}>
-                  Quay lại
+                <button type="button" className="back-button secondary" onClick={() => setScreen('playlist')}>
+                  ← Quay lại
                 </button>
                 <button
                   type="button"

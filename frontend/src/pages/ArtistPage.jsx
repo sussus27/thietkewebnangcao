@@ -41,13 +41,6 @@ export function ArtistPage({
           <button type="button" className="nav-link" onClick={() => setScreen('profile')}>Hồ sơ</button>
         </nav>
 
-        <div className="playlist-box">
-          <h3>Thư viện</h3>
-          <ul>
-            <li>Danh sách nghệ sĩ</li>
-            <li>Bài hát nổi bật</li>
-          </ul>
-        </div>
       </aside>
 
       <main className="content-panel">
